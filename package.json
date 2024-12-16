@@ -1,0 +1,33 @@
+{
+  "name": "yt-stock",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@firebase/auth": "^1.8.1",
+    "@google/generative-ai": "^0.21.0",
+    "@heroicons/react": "^1.0.6",
+    "cheerio": "^1.0.0-rc.12",
+    "firebase": "^11.1.0",
+    "framer-motion": "^11.14.4",
+    "heroicons": "^2.2.0",
+    "mongodb": "^6.12.0",
+    "next": "15.1.0",
+    "node-fetch": "^3.3.2",
+    "node-polyfill-webpack-plugin": "^4.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "xml2js": "^0.6.2",
+    "youtube-transcript": "^1.2.1",
+    "youtube-transcript-api": "^1.1.2"
+  },
+  "devDependencies": {
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1"
+  }
+}
