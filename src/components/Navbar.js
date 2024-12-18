@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
 import { signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
@@ -61,21 +59,23 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
         {/* Logo */}
         <div className="flex items-center">
           <a href="/console" className="text-2xl font-normal">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
-              TubeStocks
-            </span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 font-bold ml-8 sm:ml-0">
+            TubeStocks
+          </span>
           </a>
         </div>
 
         {/* Right Actions */}
         <div className="flex items-center space-x-4">
-         
-
           {/* Login/Logout */}
           {user ? (
             <div className="flex items-center space-x-4">
               {user.image && (
-                <img src={user.image} alt="User Avatar" className="w-8 h-8 rounded-full" />
+                <img
+                  src={user.image}
+                  alt="User Avatar"
+                  className="w-8 h-8 rounded-full hidden sm:block"
+                />
               )}
               <button
                 onClick={handleLogout}
@@ -87,14 +87,19 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
           ) : (
             <button
               onClick={handleGoogleLogin}
-              className="bg-indigo-500 px-4 py-2 rounded-md text-white hover:bg-indigo-600 transition-all"
+              className="bg-gray-700 px-4 py-2 rounded-md text-white hover:.bg-gray-900 flex items-center space-x-2 transition-all"
             >
-              Login with Google
+              <img
+                src="https://lh3.googleusercontent.com/COxitqgJr1sJnIDe8-jiKhxDx1FrYbtRHKJ9z_hELisAlapwE9LUPh6fcXIfb5vwpbMl4xl9H9TRFPc5NOO8Sb3VSgIBrfRYvW6cUA"
+                alt="Google Logo"
+                className="w-5 h-5"
+              />
+              <span>Login</span>
             </button>
           )}
 
-           {/* Theme Toggle */}
-           <div className="relative">
+          {/* Theme Toggle */}
+          <div className="relative">
             <label
               htmlFor="theme-toggle"
               className="flex items-center cursor-pointer"

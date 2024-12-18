@@ -11,11 +11,12 @@ import {
   MenuIcon,
   SearchIcon,
 } from "@heroicons/react/solid";
-import { EyeIcon, UsersIcon, VideoCameraIcon } from "@heroicons/react/solid";
+import { EyeIcon, UsersIcon, VideoCameraIcon, UserIcon } from "@heroicons/react/solid";
 import Navbar from "../../components/Navbar";
-
+  
 export default function ConsolePage() {
   const [channels, setChannels] = useState([]);
+  const [topChannels, setTopChannels] = useState([]); // New state for globally popular channels
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [recentVideos, setRecentVideos] = useState({});
@@ -24,15 +25,15 @@ export default function ConsolePage() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [theme, setTheme] = useState("light"); // light or dark
-
+  const [theme, setTheme] = useState("light");
   const router = useRouter();
+  const [userChannelIds, setUserChannelIds] = useState([]);
+  
 
   useEffect(() => {
     const storedAutoFetch = localStorage.getItem("autoFetch") === "true";
     setAutoFetch(storedAutoFetch);
 
-    // Retrieve videos from localStorage when the component mounts
     const storedVideos = localStorage.getItem("recentVideos");
     if (storedVideos) {
       setRecentVideos(JSON.parse(storedVideos));
@@ -58,6 +59,7 @@ export default function ConsolePage() {
         setUser(currentUser);
         await fetchChannels(currentUser.email);
         await fetchStockRecommendations();
+        await fetchTopChannels(); // Fetch global top channels
       }
     });
     return () => unsubscribe();
@@ -75,8 +77,24 @@ export default function ConsolePage() {
       const data = await res.json();
       const sortedChannels = data.channels.sort((a, b) => b.subscribers - a.subscribers);
       setChannels(sortedChannels);
+
+      const userChannelIds = sortedChannels.map((channel) => channel.id); 
+      setUserChannelIds(userChannelIds);
     } catch (err) {
       console.error("Failed to fetch channels:", err);
+    }
+  }
+
+  // New function to fetch top 10 globally popular YouTube channels
+  async function fetchTopChannels() {
+    try {
+      const res = await fetch("/api/getTopChannels");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch top channels.");
+      setTopChannels(data.channels);
+    } catch (err) {
+      console.error("Failed to fetch top channels:", err);
+      setError("Failed to fetch top channels. Please try again.");
     }
   }
 
@@ -101,12 +119,9 @@ export default function ConsolePage() {
       if (!res.ok) throw new Error(data.error || "Failed to fetch recent videos.");
       setRecentVideos((prev) => {
         const updatedVideos = { ...prev, [channelId]: data.videos };
-  
-        // Store updated videos in localStorage
         localStorage.setItem("recentVideos", JSON.stringify(updatedVideos));
         return updatedVideos;
       });
-
     } catch (err) {
       setError("Failed to fetch recent videos. Please try again.");
       console.error(err);
@@ -213,10 +228,13 @@ export default function ConsolePage() {
 
   const sidebarWidth = isPanelOpen ? "w-66" : "w-20";
 
+  const topStocks = stockRecommendations.slice(0, 10);
+  const globalTopChannels = topChannels.slice(0, 10);
+
   return (
     <div className={`${containerClasses} min-h-screen font-sans`}>
       <div className="relative h-screen flex">
-        {/* Hamburger icon for mobile with high z-index */}
+        {/* Hamburger icon for mobile */}
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
           className="absolute top-4 left-4 z-[9999] p-2 rounded-md text-white transition sm:hidden"
@@ -229,10 +247,7 @@ export default function ConsolePage() {
           className={`${sidePanelClasses} transition-all duration-300 overflow-hidden ${sidebarWidth} flex flex-col
           sm:static sm:${sidebarWidth} ${isPanelOpen ? 'block' : 'hidden'} sm:block absolute top-0 bottom-0 sm:relative z-50 pt-24 sm:pt-0`}
         >
-
-          {/* Top area with hamburger menu (hidden on mobile since we have one outside) */}
           <div className="p-4 flex-shrink-0 flex items-center space-x-4">
-            {/* On larger screens, this button can still toggle collapse */}
             <button
               onClick={() => setIsPanelOpen(!isPanelOpen)}
               className="hidden sm:flex items-center justify-center p-2 rounded-md hover:bg-[#3c4043] transition"
@@ -279,186 +294,216 @@ export default function ConsolePage() {
                     </button>
                   </div>
                   <div className={`flex items-center justify-between`}>
-                  {/* Channel Logo */}
-                  <img
-                    src={result.thumbnail}
-                    alt={result.title}
-                    className={`rounded-full transition-all duration-300 ${
-                      isPanelOpen ? "w-12 h-12" : "w-6 h-6"
-                    }`}
-                  />
-
-                  {/* Conditional Rendering */}
-                  {isPanelOpen ? (
-                    <div className="flex-1 flex justify-around text-xs text-gray-400 ml-3">
-                      {/* Video Count */}
-                      <div className="flex items-center">
-                        <VideoCameraIcon className="h-4 w-4 mr-1" />
-                        <span>{formatCount(result.videoCount)}</span>
+                    <img
+                      src={result.thumbnail}
+                      alt={result.title}
+                      className={`rounded-full transition-all duration-300 ${
+                        isPanelOpen ? "w-12 h-12" : "w-6 h-6"
+                      }`}
+                    />
+                    {isPanelOpen ? (
+                      <div className="flex-1 flex justify-around text-xs text-gray-400 ml-3">
+                        <div className="flex items-center">
+                          <VideoCameraIcon className="h-4 w-4 mr-1" />
+                          <span>{formatCount(result.videoCount)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <UsersIcon className="h-4 w-4 mr-1" />
+                          <span>{formatCount(result.subscribers)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <EyeIcon className="h-4 w-4 mr-1" />
+                          <span>{formatCount(result.views)}</span>
+                        </div>
                       </div>
-                      {/* Subscriber Count */}
-                      <div className="flex items-center">
-                        <UsersIcon className="h-4 w-4 mr-1" />
-                        <span>{formatCount(result.subscribers)}</span>
-                      </div>
-                      {/* View Count */}
-                      <div className="flex items-center">
-                        <EyeIcon className="h-4 w-4 mr-1" />
-                        <span>{formatCount(result.views)}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    // When collapsed, show only the "+" button
-                    <button
-                      onClick={() => handleAddChannel(result)}
-                      className="text-green-500 hover:text-green-400 ml-3"
-                    >
-                      <PlusCircleIcon className="w-6 h-6" />
-                    </button>
-                  )}
-                </div>
-
+                    ) : (
+                      <button
+                        onClick={() => handleAddChannel(result)}
+                        className="text-green-500 hover:text-green-400 ml-3"
+                      >
+                        <PlusCircleIcon className="w-6 h-6" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
         </div>
 
-        {/* Main content area (right side), now with the Navbar at the top */}
+        {/* Main content area */}
         <div className="transition-all duration-300 flex-1 overflow-auto flex flex-col">
           <Navbar theme={theme} onToggleTheme={toggleTheme} />
+
           <div className="p-6">
-            {/* Stock Recommendation Cards */}
-            <div className="mb-12">
-              <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
-                Top 10 Stock Recommendations
-              </h2>
+            {/* Top Section: Split into two columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+              {/* Top 10 Stock Recommendations */}
+              <div>
+                <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"} text-center`}>
+                  Top 10 Stock Recommendations
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {topStocks.map((stock, idx) => (
+                    <motion.div
+                      key={stock.ticker}
+                      className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer ${cardClasses}`}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      custom={idx}
+                      onClick={() => router.push(`/stock/${stock.ticker}`)}
+                    >
+                      <h2 className="text-sm font-semibold">{stock.company_name}</h2>
+                      <p className="text-xs text-gray-500">{stock.ticker}</p>
+                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
+                        {stock.count}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top 10 YouTube Channels (Global) */}
+              <div>
+              <h2 className="text-2xl font-semibold mb-4 text-center">Top 10 YouTube Channels (Global)</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {stockRecommendations.map((stock, idx) => (
+                {topChannels.map((channel, idx) => (
                   <motion.div
-                    key={stock.ticker}
-                    className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer ${
-                      isDark
-                        ? "bg-[#303134] border-[#5f6368] text-gray-200 hover:bg-[#3c4043]"
-                        : "bg-white border-gray-200 text-gray-900"
-                    }`}
+                    key={channel.id}
+                    className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer ${cardClasses}`}
                     variants={cardVariants}
                     initial="hidden"
                     animate="visible"
                     custom={idx}
-                    onClick={() => router.push(`/stock/${stock.ticker}`)}
+                    onClick={() => window.open(`https://www.youtube.com/channel/${channel.id}`, "_blank")} // Navigate to YouTube channel
                   >
-                    <h2 className="text-sm font-semibold">{stock.company_name}</h2>
-                    <p className="text-xs text-gray-500">{stock.ticker}</p>
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
-                      {stock.count}
+                    <div className="flex items-center space-x-2 mb-2 mt-4">
+                      <img
+                        src={channel.thumbnail}
+                        alt={channel.title}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <h2 className="text-sm font-semibold truncate">{channel.title}</h2>
                     </div>
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow flex items-center space-x-1">
+                    <span>{channel.count}</span>
+                    <UserIcon className="w-3 h-3" />
+                  </div>
+
+                    {/* Show green + icon if the channel is not added by the user */}
+                    {!userChannelIds.includes(channel.id) && (
+                      <button
+                        className="absolute bottom-2 right-2 text-green-500 hover:text-green-400"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click from opening YouTube
+                          handleAddChannel(channel); // Add channel for the user
+                        }}
+                      >
+                        <PlusCircleIcon className="w-5 h-5" />
+                      </button>
+                    )}
                   </motion.div>
                 ))}
               </div>
+              </div>
             </div>
 
-            {/* Channel List */}
+            {/* Channels You Have Added */}
             <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
               Channels You Have Added
             </h2>
             <ul className="space-y-6">
-            {channels.map((channel, index) => (
-              <motion.li
-                key={channel._id}
-                className={`relative shadow-sm rounded-lg p-4 hover:shadow-md transition flex flex-col ${cardClasses}`}
-                variants={{
-                  hidden: { opacity: 0, y: 50 },
-                  visible: { opacity: 1, y: 0, transition: { delay: index * 0.1, duration: 0.5, type: "spring" } },
-                }}
-                initial="hidden"
-                animate="visible"
-              >
-                {/* Remove Channel Button */}
-                <button
-                  onClick={() => handleRemoveChannel(channel.id)}
-                  className="absolute top-2 right-2 text-red-500 hover:text-red-400"
+              {channels.map((channel, index) => (
+                <motion.li
+                  key={channel._id}
+                  className={`relative shadow-sm rounded-lg p-4 hover:shadow-md transition flex flex-col ${cardClasses}`}
+                  variants={{
+                    hidden: { opacity: 0, y: 50 },
+                    visible: { opacity: 1, y: 0, transition: { delay: index * 0.1, duration: 0.5, type: "spring" } },
+                  }}
+                  initial="hidden"
+                  animate="visible"
                 >
-                  <TrashIcon className="w-5 h-5" />
-                </button>
+                  {/* Remove Channel Button */}
+                  <button
+                    onClick={() => handleRemoveChannel(channel.id)}
+                    className="absolute top-2 right-2 text-red-500 hover:text-red-400"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
 
-                {/* Channel Header */}
-                <div className="flex items-center mb-4">
-                  {/* Channel Logo */}
-                  <img
-                    src={channel.thumbnail}
-                    alt={channel.title}
-                    className="w-16 h-16 rounded-full flex-shrink-0"
-                  />
+                  {/* Channel Header */}
+                  <div className="flex items-center mb-4">
+                    <img
+                      src={channel.thumbnail}
+                      alt={channel.title}
+                      className="w-16 h-16 rounded-full flex-shrink-0"
+                    />
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-semibold mb-1">{channel.title}</h3>
+                      <p className="text-gray-500 mb-2">{channel.handle}</p>
 
-                  {/* Channel Details */}
-                  <div className="ml-4 flex-1">
-                    <h3 className="text-lg font-semibold mb-1">{channel.title}</h3>
-                    <p className="text-gray-500 mb-2">{channel.handle}</p>
-
-                    {/* Views, Subscribers, and Video Count */}
-                    <div className="flex items-center space-x-4 text-gray-400 text-xs">
-                      <div className="flex items-center">
-                        <EyeIcon className="h-4 w-4 mr-1 text-blue-500" />
-                        <span>{formatCount(channel.views)} views</span>
-                      </div>
-                      <div className="flex items-center">
-                        <UsersIcon className="h-4 w-4 mr-1 text-green-500" />
-                        <span>{formatCount(channel.subscribers)} subscribers</span>
-                      </div>
-                      <div className="flex items-center">
-                        <VideoCameraIcon className="h-4 w-4 mr-1 text-purple-500" />
-                        <span>{formatCount(channel.videoCount)} videos</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fetch Recent Videos Button */}
-                  <div className="ml-auto">
-                    <button
-                      onClick={() => fetchRecentVideos(channel.id)}
-                      className={`${buttonPrimaryClasses} px-3 py-2 text-sm`}
-                    >
-                      Fetch Videos
-                    </button>
-                  </div>
-                </div>
-
-                {/* Fetched Videos */}
-                {recentVideos[channel.id] && (
-                  <div className="mt-4 overflow-x-auto">
-                    <h4 className="text-gray-400 text-sm mb-2">Recent Videos:</h4>
-                    <div className="flex space-x-4 whitespace-nowrap">
-                      {recentVideos[channel.id].map((video) => (
-                        <div
-                          key={video.videoId}
-                          className="w-60 flex-shrink-0 p-2 bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all"
-                        >
-                          <img
-                            src={video.thumbnail}
-                            alt={video.title}
-                            className="w-full h-36 object-cover rounded-md"
-                          />
-                          <p className="mt-2 text-sm text-gray-300 font-bold truncate">{video.title}</p>
-                          <p className="text-gray-400 text-xs">
-                            Published: {new Date(video.publishedAt).toDateString()}
-                          </p>
-                          <button
-                            onClick={() =>
-                              router.push(`/analyze?videoUrl=${encodeURIComponent(video.url)}`)
-                            }
-                            className="mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-md hover:scale-105 transition-transform"
-                          >
-                            Analyze
-                          </button>
+                      <div className="flex items-center space-x-4 text-gray-400 text-xs">
+                        <div className="flex items-center">
+                          <EyeIcon className="h-4 w-4 mr-1 text-blue-500" />
+                          <span>{formatCount(channel.views)} views</span>
                         </div>
-                      ))}
+                        <div className="flex items-center">
+                          <UsersIcon className="h-4 w-4 mr-1 text-green-500" />
+                          <span>{formatCount(channel.subscribers)} subscribers</span>
+                        </div>
+                        <div className="flex items-center">
+                          <VideoCameraIcon className="h-4 w-4 mr-1 text-purple-500" />
+                          <span>{formatCount(channel.videoCount)} videos</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="ml-auto">
+                      <button
+                        onClick={() => fetchRecentVideos(channel.id)}
+                        className={`${buttonPrimaryClasses} px-3 py-2 text-sm`}
+                      >
+                        Fetch Videos
+                      </button>
                     </div>
                   </div>
-                )}
-              </motion.li>
-            ))}
-          </ul>
+
+                  {recentVideos[channel.id] && (
+                    <div className="mt-4 overflow-x-auto">
+                      <h4 className="text-gray-400 text-sm mb-2">Recent Videos:</h4>
+                      <div className="flex space-x-4 whitespace-nowrap">
+                        {recentVideos[channel.id].map((video) => (
+                          <div
+                            key={video.videoId}
+                            className="w-60 flex-shrink-0 p-2 bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all"
+                          >
+                            <img
+                              src={video.thumbnail}
+                              alt={video.title}
+                              className="w-full h-36 object-cover rounded-md"
+                            />
+                            <p className="mt-2 text-sm text-gray-300 font-bold truncate">{video.title}</p>
+                            <p className="text-gray-400 text-xs">
+                              Published: {new Date(video.publishedAt).toDateString()}
+                            </p>
+                            <button
+                              onClick={() =>
+                                router.push(`/analyze?videoUrl=${encodeURIComponent(video.url)}`)
+                              }
+                              className="mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-md hover:scale-105 transition-transform"
+                            >
+                              Analyze
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.li>
+              ))}
+            </ul>
 
             {error && (
               <div className="fixed bottom-4 right-4 bg-red-100 border border-red-200 text-red-700 px-4 py-2 rounded-md shadow-sm">
