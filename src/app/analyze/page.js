@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 
-export default function Page() {
+function AnalyzeContent() {
   const searchParams = useSearchParams();
   const videoUrl = searchParams.get("videoUrl");
 
@@ -14,14 +14,12 @@ export default function Page() {
   const [isFetching, setIsFetching] = useState(false);
   const [theme, setTheme] = useState("light"); // Theme state
 
-  // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
     document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
-  // Toggle theme and save it to localStorage
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
@@ -189,5 +187,13 @@ export default function Page() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading...</div>}>
+      <AnalyzeContent />
+    </Suspense>
   );
 }
