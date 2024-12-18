@@ -237,7 +237,7 @@ export default function ConsolePage() {
         {/* Hamburger icon for mobile */}
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
-          className="absolute top-4 left-4 z-[9999] p-2 rounded-md text-white transition sm:hidden"
+          className={`absolute top-4 left-4 z-[9999] p-2 rounded-md ${isDark ? 'text-white' : 'text-black'} transition sm:hidden`}
         >
           <MenuIcon className="w-6 h-6" />
         </button>
