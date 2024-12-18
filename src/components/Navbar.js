@@ -2,10 +2,13 @@ import React, { useState, useEffect } from "react";
 import { signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export default function Navbar({ theme = "dark", onToggleTheme }) {
   const [user, setUser] = useState(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const isConsolePage = pathname === "/console";
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -56,10 +59,14 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
   return (
     <nav className={`${navBgClass} ${textClass} py-4 px-6 shadow-md sticky top-0 z-50 transition-colors duration-300`}>
       <div className="max-w-9xl mx-auto flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center">
+      {/* Logo */}
+      <div className="flex items-center">
         <a href="/console" className="text-2xl font-normal">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 font-bold ml-8 sm:ml-0">
+          <span
+            className={`text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 font-bold ${
+              isConsolePage ? "ml-8 sm:ml-0" : ""
+            }`}
+          >
             TubeStocks
           </span>
           <span className="text-xs rounded py-1 ml-2">
