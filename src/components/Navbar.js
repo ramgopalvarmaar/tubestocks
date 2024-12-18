@@ -58,12 +58,16 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
       <div className="max-w-9xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center">
-          <a href="/console" className="text-2xl font-normal">
+        <a href="/console" className="text-2xl font-normal">
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 font-bold ml-8 sm:ml-0">
             TubeStocks
           </span>
-          </a>
-        </div>
+          <span className="text-xs rounded py-1 ml-2">
+            Beta
+          </span>
+        </a>
+      </div>
+
 
         {/* Right Actions */}
         <div className="flex items-center space-x-4">
