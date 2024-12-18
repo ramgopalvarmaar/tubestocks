@@ -338,76 +338,96 @@ export default function ConsolePage() {
           <div className="p-6">
             {/* Top Section: Split into two columns */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-              {/* Top 10 Stock Recommendations */}
-              <div>
-                <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"} text-center`}>
-                  Top 10 Stock Recommendations
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {topStocks.map((stock, idx) => (
-                    <motion.div
-                      key={stock.ticker}
-                      className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer ${cardClasses}`}
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      custom={idx}
-                      onClick={() => router.push(`/stock/${stock.ticker}`)}
-                    >
-                      <h2 className="text-sm font-semibold">{stock.company_name}</h2>
-                      <p className="text-xs text-gray-500">{stock.ticker}</p>
-                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
-                        {stock.count}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
+  {/* Top 10 Stock Recommendations */}
+  <div>
+    <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"} text-center`}>
+      Top 10 Stock Recommendations
+    </h2>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {topStocks.map((stock, idx) => (
+        <motion.div
+          key={stock.ticker}
+          className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${cardClasses}`}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          custom={idx}
+          onClick={() => router.push(`/stock/${stock.ticker}`)}
+        >
+          <h2 className="text-xs font-semibold">{stock.company_name}</h2>
+          <p className="text-xs text-gray-500">{stock.ticker}</p>
+          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
+            {stock.count}
+          </div>
 
-              {/* Top 10 YouTube Channels (Global) */}
-              <div>
-              <h2 className="text-2xl font-semibold mb-4 text-center">Top 10 YouTube Channels (Global)</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {topChannels.map((channel, idx) => (
-                  <motion.div
-                    key={channel.id}
-                    className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer ${cardClasses}`}
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    custom={idx}
-                    onClick={() => window.open(`https://www.youtube.com/channel/${channel.id}`, "_blank")} // Navigate to YouTube channel
-                  >
-                    <div className="flex items-center space-x-2 mb-2 mt-4">
-                      <img
-                        src={channel.thumbnail}
-                        alt={channel.title}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <h2 className="text-sm font-semibold truncate">{channel.title}</h2>
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow flex items-center space-x-1">
-                    <span>{channel.count}</span>
-                    <UserIcon className="w-3 h-3" />
-                  </div>
+          {/* Tooltip */}
+          <div
+            className={`absolute bottom-full ${
+              idx % 5 === 0 ? "left-0" : "left-1/2 -translate-x-1/2"
+            } transform mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg hidden group-hover:block z-20`}
+          >
+            <p>{stock.count} videos recommend this stock</p>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  </div>
 
-                    {/* Show green + icon if the channel is not added by the user */}
-                    {!userChannelIds.includes(channel.id) && (
-                      <button
-                        className="absolute bottom-2 right-2 text-green-500 hover:text-green-400"
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent card click from opening YouTube
-                          handleAddChannel(channel); // Add channel for the user
-                        }}
-                      >
-                        <PlusCircleIcon className="w-5 h-5" />
-                      </button>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-              </div>
+  {/* Top 10 YouTube Channels (Global) */}
+  <div>
+    <h2 className="text-2xl font-semibold mb-4 text-center">Top 10 YouTube Channels</h2>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {topChannels.map((channel, idx) => (
+        <motion.div
+          key={channel.id}
+          className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${cardClasses}`}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          custom={idx}
+          onClick={() => window.open(`https://www.youtube.com/channel/${channel.id}`, "_blank")}
+        >
+          <div className="flex items-center space-x-2">
+            <img
+              src={channel.thumbnail}
+              alt={channel.title}
+              className="w-12 h-12 rounded-full"
+            />
+            {/* Channel Name - Visible on Mobile */}
+            <span className="text-xs font-semibold truncate sm:hidden">{channel.title}</span>
+
+            {/* Tooltip */}
+            <div
+              className={`absolute bottom-full ${
+                idx % 5 === 4 ? "right-0" : "left-1/2 -translate-x-1/2"
+              } mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-1 shadow-lg hidden group-hover:block z-20`}
+            >
+              {channel.title} - {channel.count} users have added this channel
             </div>
+          </div>
+          <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow flex items-center space-x-1">
+            <span>{channel.count}</span>
+            <UserIcon className="w-3 h-3" />
+          </div>
+
+          {/* Add Button */}
+          {!userChannelIds.includes(channel.id) && (
+            <button
+              className="absolute bottom-2 right-2 text-green-500 hover:text-green-400"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddChannel(channel);
+              }}
+            >
+              <PlusCircleIcon className="w-5 h-5" />
+            </button>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  </div>
+</div>
+
 
             {/* Channels You Have Added */}
             <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
