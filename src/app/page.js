@@ -1,48 +1,33 @@
 "use client";
+
 import Head from "next/head";
-import React, { useState } from "react";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "../firebase";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import Navbar from "../components/Navbar";
 
 export default function LandingPage() {
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState("");
-  const router = useRouter();
+  const [theme, setTheme] = useState("light");
 
-  async function handleGoogleLogin() {
-    const provider = new GoogleAuthProvider();
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
+  }, []);
 
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const { displayName, email, photoURL } = result.user;
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
 
-      // Save user data to MongoDB
-      const response = await fetch("/api/saveUser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: displayName,
-          email,
-          image: photoURL,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save user data.");
-      }
-
-      setUser({ name: displayName, email, image: photoURL });
-      router.push("/console");
-    } catch (err) {
-      console.error(err);
-      setError("Failed to sign in with Google. Please try again.");
-    }
-  }
+  const isDark = theme === "dark";
+  const containerClasses = isDark ? "bg-[#202124] text-white" : "bg-white text-gray-900";
+  const cardClasses = isDark
+    ? "bg-[#303134] border border-[#5f6368] text-gray-200 hover:bg-[#3c4043]"
+    : "bg-gray-100 border border-gray-300 text-gray-900 hover:bg-gray-200";
 
   return (
     <>
-      {/* SEO Meta Tags */}
       <Head>
         <title>TubeStocks - AI-Powered Stock Analysis from YouTube</title>
         <meta
@@ -64,70 +49,77 @@ export default function LandingPage() {
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
 
-      {/* Landing Page Content */}
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-gray-900 text-white">
+      <div className={`${containerClasses} min-h-screen`}>
+        {/* Navbar with Theme Toggle */}
+        <Navbar theme={theme} onToggleTheme={toggleTheme} />
+
         {/* Hero Section */}
         <header className="text-center py-16 px-6">
-          <h1 className="text-4xl font-extrabold text-white mb-4">
-            <span className="text-blue-400">TubeStocks</span> - AI-Powered Stock Analysis
+          <h1 className="text-4xl font-extrabold mb-4">
+            <span
+              className={`text-transparent bg-clip-text bg-gradient-to-r ${
+                isDark
+                  ? "from-teal-300 via-indigo-300 to-purple-300"
+                  : "from-blue-500 via-indigo-500 to-pink-500"
+              }`}
+            >
+              TubeStocks
+            </span>{" "}
+            - AI-Powered Stock Analysis
           </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+          <p className="text-lg max-w-2xl mx-auto">
             Manage YouTube channels, auto-fetch recent videos, and analyze them with AI to extract actionable stock recommendations.
           </p>
-          <div className="mt-6">
-            {!user ? (
-              <button
-                onClick={handleGoogleLogin}
-                className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-md shadow-md hover:bg-blue-600 transition-all"
-              >
-                Sign in with Google
-              </button>
-            ) : (
-              <div className="text-center">
-                <p className="text-lg text-gray-300">Welcome, {user.name}!</p>
-                <img
-                  src={user.image}
-                  alt={user.name}
-                  className="rounded-full w-16 h-16 mx-auto mt-4"
-                />
-              </div>
-            )}
-          </div>
-          {error && <p className="text-red-400 mt-4">{error}</p>}
         </header>
 
         {/* Features Section */}
         <section className="py-12 px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-2xl font-bold text-white mb-6">Why Choose TubeStocks?</h2>
+            <h2 className="text-2xl font-bold mb-6">Why Choose TubeStocks?</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-800 bg-opacity-90 p-6 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold text-blue-400 mb-2">Channel Management</h3>
-                <p className="text-gray-300">
-                  Search, add, and manage your favorite YouTube channels in one place.
-                </p>
+              <div className={`${cardClasses} p-6 rounded-lg shadow-md`}>
+                <h3
+                  className={`text-lg font-semibold mb-2 ${
+                    isDark ? "text-teal-300" : "text-indigo-500"
+                  }`}
+                >
+                  Channel Management
+                </h3>
+                <p>Search, add, and manage your favorite YouTube channels in one place.</p>
               </div>
-              <div className="bg-gray-800 bg-opacity-90 p-6 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold text-blue-400 mb-2">Auto-Fetch Videos</h3>
-                <p className="text-gray-300">
-                  Automatically fetch recent videos from your channels and analyze them with ease.
-                </p>
+              <div className={`${cardClasses} p-6 rounded-lg shadow-md`}>
+                <h3
+                  className={`text-lg font-semibold mb-2 ${
+                    isDark ? "text-teal-300" : "text-indigo-500"
+                  }`}
+                >
+                  Auto-Fetch Videos
+                </h3>
+                <p>Automatically fetch recent videos from your channels and analyze them with ease.</p>
               </div>
-              <div className="bg-gray-800 bg-opacity-90 p-6 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold text-blue-400 mb-2">AI Analysis</h3>
-                <p className="text-gray-300">
-                  Extract actionable stock recommendations with timestamps and context using advanced AI.
-                </p>
+              <div className={`${cardClasses} p-6 rounded-lg shadow-md`}>
+                <h3
+                  className={`text-lg font-semibold mb-2 ${
+                    isDark ? "text-teal-300" : "text-indigo-500"
+                  }`}
+                >
+                  AI Analysis
+                </h3>
+                <p>Extract actionable stock recommendations with timestamps and context using advanced AI.</p>
               </div>
             </div>
           </div>
         </section>
 
         {/* How It Works Section */}
-        <section className="py-12 px-6 bg-gradient-to-br from-gray-900 to-indigo-900">
+        <section
+          className={`py-12 px-6 ${
+            isDark ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-700"
+          }`}
+        >
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-2xl font-bold text-white mb-6">How It Works</h2>
-            <ol className="list-decimal list-inside text-gray-300 space-y-4 text-left">
+            <h2 className="text-2xl font-bold mb-6">How It Works</h2>
+            <ol className="list-decimal list-inside space-y-4 text-left">
               <li>Sign in with Google to access your personalized console.</li>
               <li>Search and add YouTube channels to your list.</li>
               <li>Enable auto-fetch to retrieve recent videos automatically.</li>
@@ -139,14 +131,28 @@ export default function LandingPage() {
         </section>
 
         {/* Footer */}
-        <footer className="py-6 bg-gray-800 text-gray-300 text-center">
+        <footer
+          className={`py-6 text-center ${
+            isDark ? "bg-gray-800 text-gray-300" : "bg-gray-100 text-gray-700"
+          }`}
+        >
           <p>&copy; 2024 TubeStocks. All Rights Reserved.</p>
           <p>
-            <a href="/terms" className="text-blue-400 hover:underline">
+            <a
+              href="/terms"
+              className={`${
+                isDark ? "text-teal-300" : "text-indigo-500"
+              } hover:underline`}
+            >
               Terms of Service
             </a>{" "}
             |{" "}
-            <a href="/privacy" className="text-blue-400 hover:underline">
+            <a
+              href="/privacy"
+              className={`${
+                isDark ? "text-teal-300" : "text-indigo-500"
+              } hover:underline`}
+            >
               Privacy Policy
             </a>
           </p>

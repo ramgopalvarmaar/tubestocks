@@ -19,3 +19,54 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Theme Toggle CSS */
+input[type="checkbox"] + .block {
+  position: relative;
+}
+
+input[type="checkbox"] + .block .dot {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.25rem;
+  background-color: white;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  transition: all 0.3s ease-in-out;
+}
+
+input[type="checkbox"]:checked + .block .dot {
+  transform: translateX(1.25rem);
+  background-color: #4fd1c5; /* Teal color for dark mode */
+}
+
+.futuristic-loader {
+  width: 60px;
+  height: 60px;
+  border: 8px solid rgba(255, 255, 255, 0.1);
+  border-top: 8px solid #00f6ff;
+  border-radius: 50%;
+  animation: spin 1.5s linear infinite, glow 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 10px #00f6ff, 0 0 20px #00f6ff;
+  }
+  50% {
+    box-shadow: 0 0 20px #00f6ff, 0 0 30px #00f6ff;
+  }
+  100% {
+    box-shadow: 0 0 10px #00f6ff, 0 0 20px #00f6ff;
+  }
+}

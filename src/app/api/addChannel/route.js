@@ -1,7 +1,7 @@
 import clientPromise from "../../../lib/mongodb";
 
 export async function POST(req) {
-  const { channelId, channelUrl, userId, title, thumbnail, handle, subscribers } = await req.json();
+  const { channelId, channelUrl, userId, title, thumbnail, handle, subscribers, views, videoCount } = await req.json();
 
   if (!channelId || !userId) {
     return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
@@ -12,7 +12,7 @@ export async function POST(req) {
     const db = client.db(process.env.DB_NAME);
     const collection = db.collection("channels");
 
-    const channel = { id: channelId, url: channelUrl, userId, title, thumbnail, handle, subscribers, addedAt: new Date() };
+    const channel = { id: channelId, url: channelUrl, userId, title, thumbnail, handle, subscribers, views, videoCount, addedAt: new Date() };
     await collection.insertOne(channel);
 
     return new Response(JSON.stringify({ channel }), { status: 200 });

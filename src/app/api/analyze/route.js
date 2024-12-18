@@ -67,7 +67,7 @@ export async function POST(req) {
       Identify all the stocks explicitly recommended by the speaker. For each recommendation, include the following details:
 
       company_name: The name of the company. Ensure the company name is correct. The transcript might contain wrong spelling.
-      ticker: The stock's ticker symbol (Derive this value from the company name).
+      ticker: The stock's ticker symbol (Derive this value from the company name and ensure the symbol is valid and correct).
       timestamp: The timestamp in seconds of the first mention of the company.
       reason: A brief summary of the reason or context for the recommendation. Justify why it is recommended.
 

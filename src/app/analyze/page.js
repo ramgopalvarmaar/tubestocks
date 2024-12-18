@@ -5,17 +5,33 @@ import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 
 export default function Page() {
-  const searchParams = useSearchParams(); // Get query parameters
-  const videoUrl = searchParams.get("videoUrl"); // Extract videoUrl from query
+  const searchParams = useSearchParams();
+  const videoUrl = searchParams.get("videoUrl");
 
-  const [inputUrl, setInputUrl] = useState(videoUrl || ""); // Initialize with videoUrl if available
+  const [inputUrl, setInputUrl] = useState(videoUrl || "");
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState("");
   const [isFetching, setIsFetching] = useState(false);
+  const [theme, setTheme] = useState("light"); // Theme state
+
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
+  }, []);
+
+  // Toggle theme and save it to localStorage
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
 
   useEffect(() => {
     if (videoUrl) {
-      handleAnalyze(videoUrl); // Auto-analyze if videoUrl is present in the query
+      handleAnalyze(videoUrl);
     }
   }, [videoUrl]);
 
@@ -27,9 +43,7 @@ export default function Page() {
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoUrl: urlToAnalyze }),
       });
 
@@ -47,21 +61,37 @@ export default function Page() {
     }
   }
 
+  const isDark = theme === "dark";
+  const containerClasses = isDark ? "bg-[#202124] text-white" : "bg-white text-gray-900";
+  const cardClasses = isDark
+    ? "bg-[#303134] border border-[#5f6368] text-gray-300 hover:shadow-lg"
+    : "bg-gray-100 border border-gray-300 text-gray-800 hover:shadow-lg";
+
   return (
-    <div>
-      <Navbar />
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-gray-900 text-white flex flex-col items-center p-6">
-        <div className="bg-gradient-to-br from-indigo-600 to-purple-800 shadow-2xl rounded-lg p-6 w-full max-w-3xl">
-          <h1 className="text-3xl font-extrabold mb-4 text-white">
-            <span className="text-blue-400">AI-Powered</span> Stock Analysis
+    <div className={`${containerClasses} min-h-screen`}>
+      {/* Navbar */}
+      <Navbar theme={theme} onToggleTheme={toggleTheme} />
+
+      <div className="min-h-screen flex flex-col md:flex-row items-start p-6 space-x-0 md:space-x-6">
+        {/* Main Content */}
+        <div className={`${cardClasses} shadow-2xl rounded-lg p-6 w-full md:w-3/4`}>
+          <h1 className="text-3xl font-extrabold mb-4">
+            <span
+              className={`${
+                isDark ? "text-teal-300" : "text-indigo-500"
+              }`}
+            >
+              AI-Powered
+            </span>{" "}
+            Stock Analysis
           </h1>
 
           {videoUrl ? (
-            <p className="text-gray-200 mb-6">
+            <p className="mb-6">
               Automatically fetching analysis for the provided YouTube video.
             </p>
           ) : (
-            <p className="text-gray-200 mb-6">
+            <p className="mb-6">
               Enter a YouTube video URL below to fetch the transcript, analyze it with our AI model,
               and extract stock recommendations.
             </p>
@@ -74,15 +104,23 @@ export default function Page() {
                 placeholder="Enter YouTube video URL..."
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
-                className="flex-grow p-3 border rounded-l-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className={`flex-grow p-3 border rounded-l-md ${
+                  isDark ? "bg-[#3c4043] text-gray-200" : "bg-gray-100 text-gray-900"
+                } placeholder-gray-500 focus:outline-none focus:ring-2 ${
+                  isDark ? "focus:ring-teal-300" : "focus:ring-indigo-300"
+                }`}
               />
               <button
                 onClick={() => handleAnalyze(inputUrl)}
                 disabled={isFetching || !inputUrl}
-                className={`p-3 bg-blue-500 text-white rounded-r-md transition-all ${
+                className={`p-3 rounded-r-md transition-all ${
                   isFetching
                     ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-blue-600 hover:scale-105"
+                    : `${
+                        isDark
+                          ? "bg-teal-500 hover:bg-teal-600"
+                          : "bg-indigo-500 hover:bg-indigo-600"
+                      } text-white`
                 }`}
               >
                 {isFetching ? "Analyzing..." : "Analyze"}
@@ -90,11 +128,15 @@ export default function Page() {
             </div>
           )}
 
-          {isFetching && <p className="text-gray-300">Analyzing video...</p>}
+          {isFetching && (
+            <div className="flex flex-col items-center justify-center mt-6">
+              <div className="futuristic-loader mb-4"></div>
+              <p className="animate-pulse">Analyzing video...</p>
+            </div>
+          )}
 
           {error && <p className="text-red-400 mb-4">{error}</p>}
 
-          {/* Display recommendations if available */}
           {recommendations.length > 0 && (
             <div className="space-y-6">
               {recommendations.map((rec, idx) => {
@@ -104,19 +146,16 @@ export default function Page() {
                 return (
                   <div
                     key={idx}
-                    className="bg-gray-800 bg-opacity-90 shadow-md rounded-lg p-5 border border-gray-700"
+                    className={`${cardClasses} shadow-md rounded-lg p-5`}
                   >
-                    <h3 className="text-xl font-semibold text-blue-400 mb-2">
+                    <h3 className="text-xl font-semibold mb-2">
                       Recommendation {idx + 1}
                     </h3>
-                    <p className="text-gray-300 mb-2">
+                    <p className="mb-2">
                       <strong>Stock Name:</strong> {rec.company_name} ({rec.ticker})
                     </p>
-                    <p className="text-gray-300 mb-4">
+                    <p className="mb-4">
                       <strong>Justification:</strong> {rec.reason}
-                    </p>
-                    <p className="text-gray-300 mb-4 text-center font-medium">
-                      <strong>Jump directly to the moment the stock is mentioned</strong>
                     </p>
                     <div className="relative w-full h-80 sm:h-60 mt-4">
                       <iframe
@@ -133,11 +172,20 @@ export default function Page() {
               })}
             </div>
           )}
+        </div>
 
-          {/* If not fetching, no error, and no recommendations, show message */}
-          {!isFetching && !error && recommendations.length === 0 && (
-            <p className="text-gray-300 mt-4">No recommendations found</p>
-          )}
+        {/* Disclaimer Card */}
+        <div className="hidden md:block md:w-1/4">
+          <div
+            className={`${cardClasses} fixed rounded-lg p-5 border-l-4 border-yellow-500 shadow-lg`}
+          >
+            <h2 className="text-yellow-400 text-lg font-bold mb-2">Disclaimer</h2>
+            <p className="text-sm">
+              The stock analysis provided here is AI-generated and for informational purposes only.
+              Please review the analysis carefully and always do your own research before making any
+              investment decisions.
+            </p>
+          </div>
         </div>
       </div>
     </div>

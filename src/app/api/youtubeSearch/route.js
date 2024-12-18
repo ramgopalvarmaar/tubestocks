@@ -28,10 +28,14 @@ export async function GET(req) {
         handle: item.snippet.customUrl || `@${item.snippet.channelId}`,
         thumbnail: item.snippet.thumbnails.high.url,
         subscribers: item.statistics.subscriberCount,
+        views: item.statistics.viewCount,
+        videoCount: item.statistics.videoCount,
         url: `https://www.youtube.com/channel/${item.id}`,
       }));
+
+      const sortedChannels = results.filter(Boolean).sort((a, b) => b.subscribers - a.subscribers);
   
-      return new Response(JSON.stringify({ results }), { status: 200 });
+      return new Response(JSON.stringify({ sortedChannels }), { status: 200 });
     } catch (err) {
       console.error("YouTube API error:", err);
       return new Response(JSON.stringify({ error: "YouTube API error" }), { status: 500 });
