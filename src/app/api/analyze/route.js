@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { YoutubeTranscript } from "youtube-transcript";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import clientPromise from "../../../lib/mongodb"; // MongoDB helper
 
-// Your Gemini API key
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const FLASK_API_URL = "https://hot-catfish-heavily.ngrok-free.app"; // Ngrok-exposed Flask API URL
 
 export async function POST(req) {
   const { videoUrl } = await req.json();
@@ -43,17 +42,20 @@ export async function POST(req) {
       return NextResponse.json({ recommendations: existingData.recommendations });
     }
 
-    // Step 3: Fetch the transcript
+    // Step 3: Fetch the transcript using the Ngrok-exposed Flask API
     let transcriptText;
     let transcriptTextWithTimeStamps;
     try {
-      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-      transcriptText = transcript.map((t) => t.text).join(" ");
+      const transcriptResponse = await fetch(`${FLASK_API_URL}/transcript/${videoId}`);
+      if (!transcriptResponse.ok) {
+        const { error } = await transcriptResponse.json();
+        throw new Error(error || "Failed to fetch transcript");
+      }
+      const { transcript } = await transcriptResponse.json();
+      transcriptText = transcript;
       transcriptTextWithTimeStamps = transcript
-        .map((t) => `[${t.offset.toFixed(0)}s] ${t.text}`)
-        .join(" ");
     } catch (e) {
-      return NextResponse.json({ error: "Failed to fetch transcript" }, { status: 500 });
+      return NextResponse.json({ error: `Failed to fetch transcript: ${e.message}` }, { status: 500 });
     }
 
     // Step 4: Call the Gemini API
@@ -88,7 +90,7 @@ export async function POST(req) {
       history: [],
     });
 
-    console.log(transcriptTextWithTimeStamps)
+    console.log(transcriptTextWithTimeStamps);
 
     const userMessage = `Analyze the below transcript 
     ${transcriptTextWithTimeStamps} 
@@ -99,22 +101,21 @@ export async function POST(req) {
       const geminiResponse = await chatSession.sendMessage(userMessage);
       const geminiText = await geminiResponse.response.text();
       const parsed = JSON.parse(geminiText);
-      console.log(parsed)
+      console.log(parsed);
       recommendations = parsed.recommendations || [];
     } catch (e) {
       return NextResponse.json({ error: "Failed to process recommendations" }, { status: 500 });
     }
 
     if (recommendations.length > 0) {
-    // Step 5: Save the recommendations to MongoDB
-    const dataToSave = {
+      // Step 5: Save the recommendations to MongoDB
+      const dataToSave = {
         videoId,
         recommendations,
         createdAt: new Date(),
-    };
-    await collection.insertOne(dataToSave);
+      };
+      await collection.insertOne(dataToSave);
     }
-    
 
     // Step 6: Return recommendations to the client
     return NextResponse.json({ recommendations });
