@@ -11,7 +11,7 @@ import {
   MenuIcon,
   SearchIcon,
 } from "@heroicons/react/solid";
-import { EyeIcon, UsersIcon, VideoCameraIcon, UserIcon } from "@heroicons/react/solid";
+import { EyeIcon, UsersIcon, VideoCameraIcon, UserIcon, RefreshIcon } from "@heroicons/react/solid";
 import Navbar from "../../components/Navbar";
   
 export default function ConsolePage() {
@@ -434,97 +434,108 @@ export default function ConsolePage() {
               Channels You Have Added
             </h2>
             <ul className="space-y-6">
-              {channels.map((channel, index) => (
-                <motion.li
-                  key={channel._id}
-                  className={`relative shadow-sm rounded-lg p-4 hover:shadow-md transition flex flex-col ${cardClasses}`}
-                  variants={{
-                    hidden: { opacity: 0, y: 50 },
-                    visible: { opacity: 1, y: 0, transition: { delay: index * 0.1, duration: 0.5, type: "spring" } },
-                  }}
-                  initial="hidden"
-                  animate="visible"
+            {channels.map((channel, index) => (
+            <motion.li
+              key={channel._id}
+              className={`relative shadow-sm rounded-lg p-4 hover:shadow-md transition flex flex-col ${cardClasses}`}
+              variants={{
+                hidden: { opacity: 0, y: 50 },
+                visible: { 
+                  opacity: 1,
+                  y: 0,
+                  transition: {
+                    delay: index * 0.1,
+                    duration: 0.5,
+                    type: "spring"
+                  }
+                },
+              }}
+              initial="hidden"
+              animate="visible"
+            >
+              {/* Container for top-right icons */}
+              <div className="absolute top-2 right-2 flex flex-col items-end space-y-2">
+                {/* Remove Channel Button */}
+                <button
+                  onClick={() => handleRemoveChannel(channel.id)}
+                  className="text-red-500 hover:text-red-400"
                 >
-                  {/* Remove Channel Button */}
-                  <button
-                    onClick={() => handleRemoveChannel(channel.id)}
-                    className="absolute top-2 right-2 text-red-500 hover:text-red-400"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
+                  <TrashIcon className="w-5 h-5" />
+                </button>
 
-                  {/* Channel Header */}
-                  <div className="flex items-center mb-4">
-                    <img
-                      src={channel.thumbnail}
-                      alt={channel.title}
-                      className="w-16 h-16 rounded-full flex-shrink-0"
-                    />
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold mb-1">{channel.title}</h3>
-                      <p className="text-gray-500 mb-2">{channel.handle}</p>
+                {/* Refresh (Fetch Latest Videos) Button (icon for mobile, text for larger screens) */}
+                {/* For simplicity, let's show the circular refresh icon only here. If you need the text version on larger screens, you can add logic to display it inline. */}
+                <button
+                onClick={() => fetchRecentVideos(channel.id)}
+                className="p-2 rounded-full bg-white text-black shadow-md hover:bg-gray-100 transition-transform duration-300 transform hover:scale-110 group focus:outline-none focus:ring-2 focus:ring-blue-300"
+                aria-label="Refresh"
+              >
+                <RefreshIcon className="h-6 w-6 transition-transform duration-300 group-hover:rotate-180" />
+              </button>
 
-                      <div className="flex items-center space-x-4 text-gray-400 text-xs">
-                        <div className="flex items-center">
-                          <EyeIcon className="h-4 w-4 mr-1 text-blue-500" />
-                          <span>{formatCount(channel.views)} views</span>
-                        </div>
-                        <div className="flex items-center">
-                          <UsersIcon className="h-4 w-4 mr-1 text-green-500" />
-                          <span>{formatCount(channel.subscribers)} subscribers</span>
-                        </div>
-                        <div className="flex items-center">
-                          <VideoCameraIcon className="h-4 w-4 mr-1 text-purple-500" />
-                          <span>{formatCount(channel.videoCount)} videos</span>
-                        </div>
-                      </div>
+              </div>
+
+              {/* Channel Header (left side content) */}
+              <div className="flex items-center mb-4 pr-10"> 
+                {/* pr-10 to ensure text doesn't overlap the buttons on the right */}
+                <img
+                  src={channel.thumbnail}
+                  alt={channel.title}
+                  className="w-16 h-16 rounded-full flex-shrink-0"
+                />
+                <div className="ml-4 flex-1">
+                  <h3 className="text-lg font-semibold mb-1">{channel.title}</h3>
+                  <p className="text-gray-500 mb-2">{channel.handle}</p>
+
+                  <div className="flex items-center space-x-4 text-gray-400 text-xs">
+                    <div className="flex items-center">
+                      <EyeIcon className="h-4 w-4 mr-1 text-blue-500" />
+                      <span>{formatCount(channel.views)} views</span>
                     </div>
-
-                    <div className="ml-auto">
-                      <button
-                        onClick={() => fetchRecentVideos(channel.id)}
-                        className={`${buttonPrimaryClasses} px-3 py-2 text-sm`}
-                      >
-                        Fetch Videos
-                      </button>
+                    <div className="flex items-center">
+                      <UsersIcon className="h-4 w-4 mr-1 text-green-500" />
+                      <span>{formatCount(channel.subscribers)} subscribers</span>
+                    </div>
+                    <div className="flex items-center">
+                      <VideoCameraIcon className="h-4 w-4 mr-1 text-purple-500" />
+                      <span>{formatCount(channel.videoCount)} videos</span>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {recentVideos[channel.id] && (
-                    <div className="mt-4 overflow-x-auto">
-                      <h4 className="text-gray-400 text-sm mb-2">Recent Videos:</h4>
-                      <div className="flex space-x-4 whitespace-nowrap">
-                        {recentVideos[channel.id].map((video) => (
-                          <div
-                            key={video.videoId}
-                            className="w-60 flex-shrink-0 p-2 bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all"
-                          >
-                            <img
-                              src={video.thumbnail}
-                              alt={video.title}
-                              className="w-full h-36 object-cover rounded-md"
-                            />
-                            <p className="mt-2 text-sm text-gray-300 font-bold truncate">{video.title}</p>
-                            <p className="text-gray-400 text-xs">
-                              Published: {new Date(video.publishedAt).toDateString()}
-                            </p>
-                            <button
-                              onClick={() =>
-                                router.push(`/analyze?videoUrl=${encodeURIComponent(video.url)}`)
-                              }
-                              className="mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-md hover:scale-105 transition-transform"
-                            >
-                              Analyze
-                            </button>
-                          </div>
-                        ))}
+              {recentVideos[channel.id] && (
+                <div className="mt-4 overflow-x-auto">
+                  <h4 className="text-gray-400 text-sm mb-2">Recent Videos:</h4>
+                  <div className="flex space-x-4 whitespace-nowrap">
+                    {recentVideos[channel.id].map((video) => (
+                      <div
+                        key={video.videoId}
+                        className="w-60 flex-shrink-0 p-2 bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all"
+                      >
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          className="w-full h-36 object-cover rounded-md"
+                        />
+                        <p className="mt-2 text-sm text-gray-300 font-bold truncate">{video.title}</p>
+                        <p className="text-gray-400 text-xs">
+                          Published: {new Date(video.publishedAt).toDateString()}
+                        </p>
+                        <button
+                          onClick={() => router.push(`/analyze?videoUrl=${encodeURIComponent(video.url)}`)}
+                          className="mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-md hover:scale-105 transition-transform"
+                        >
+                          Analyze
+                        </button>
                       </div>
-                    </div>
-                  )}
-                </motion.li>
-              ))}
-            </ul>
-
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.li>
+          ))}
+          </ul>
             {error && (
               <div className="fixed bottom-4 right-4 bg-red-100 border border-red-200 text-red-700 px-4 py-2 rounded-md shadow-sm">
                 {error}
