@@ -28,7 +28,20 @@ export default function ConsolePage() {
   const [theme, setTheme] = useState("light");
   const router = useRouter();
   const [userChannelIds, setUserChannelIds] = useState([]);
-  
+  const [toastMessage, setToastMessage] = useState(null);
+  const [scrollToIndex, setScrollToIndex] = useState(null);
+
+  const listRef = React.createRef();
+
+  useEffect(() => {
+    if (scrollToIndex !== null && listRef.current) {
+      listRef.current.children[scrollToIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setScrollToIndex(null); // Reset after scrolling
+    }
+  }, [scrollToIndex]);
 
   useEffect(() => {
     const storedAutoFetch = localStorage.getItem("autoFetch") === "true";
@@ -111,6 +124,17 @@ export default function ConsolePage() {
     }
   }
 
+  function Toast({ message, onClose }) {
+    return (
+      <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 animate-bounce">
+        <span>{message}</span>
+        <button onClick={onClose} className="text-white text-sm font-bold">
+          ×
+        </button>
+      </div>
+    );
+  }
+
   async function fetchRecentVideos(channelId) {
     try {
       const res = await fetch(`/api/getRecentVideos?channelId=${channelId}`);
@@ -160,7 +184,13 @@ export default function ConsolePage() {
 
       if (!res.ok) throw new Error("Failed to add channel.");
       const data = await res.json();
-      setChannels((prev) => [...prev, data.channel]);
+      setChannels((prev) => {
+        const updatedChannels = [...prev, data.channel];
+        setScrollToIndex(updatedChannels.length - 1); // Index of the newly added channel
+        return updatedChannels;
+      });
+  
+      setToastMessage("Channel added successfully!");
     } catch (err) {
       console.error("Failed to add channel:", err);
       setError("Failed to add channel. Please try again.");
@@ -177,6 +207,7 @@ export default function ConsolePage() {
 
       if (!res.ok) throw new Error("Failed to remove channel.");
       setChannels((prev) => prev.filter((channel) => channel.id !== channelId));
+      setToastMessage("Channel removed successfully!");
     } catch (err) {
       setError("Failed to remove channel. Please try again.");
       console.error(err);
@@ -344,32 +375,30 @@ export default function ConsolePage() {
       Top 10 Stock Recommendations
     </h2>
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {topStocks.map((stock, idx) => (
-        <motion.div
-          key={stock.ticker}
-          className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${cardClasses}`}
-          variants={cardVariants}
-          initial="hidden"
-          animate="visible"
-          custom={idx}
-          onClick={() => router.push(`/stock/${stock.ticker}`)}
+    {topStocks.map((stock, idx) => (
+      <motion.div
+        key={`${stock.ticker}-${idx}`} // Unique key
+        className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${cardClasses}`}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        custom={idx}
+        onClick={() => router.push(`/stock/${stock.ticker.split(':').pop()}`)}
+      >
+        <h2 className="text-xs font-semibold">{stock.company_name}</h2>
+        <p className="text-xs text-gray-500">{stock.ticker.split(':').pop()}</p>
+        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
+          {stock.uniqueVideoCount}
+        </div>
+        <div
+          className={`absolute bottom-full ${
+            idx % 5 === 0 ? "left-0" : "left-1/2 -translate-x-1/2"
+          } transform mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg hidden group-hover:block z-20`}
         >
-          <h2 className="text-xs font-semibold">{stock.company_name}</h2>
-          <p className="text-xs text-gray-500">{stock.ticker}</p>
-          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
-            {stock.count}
-          </div>
-
-          {/* Tooltip */}
-          <div
-            className={`absolute bottom-full ${
-              idx % 5 === 0 ? "left-0" : "left-1/2 -translate-x-1/2"
-            } transform mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg hidden group-hover:block z-20`}
-          >
-            <p>{stock.count} videos recommend this stock</p>
-          </div>
-        </motion.div>
-      ))}
+          <p>{stock.uniqueVideoCount} videos recommend this stock</p>
+        </div>
+      </motion.div>
+    ))}
     </div>
   </div>
 
@@ -433,7 +462,7 @@ export default function ConsolePage() {
             <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
               Channels You Have Added
             </h2>
-            <ul className="space-y-6">
+            <ul ref={listRef} className="space-y-6">
             {channels.map((channel, index) => (
             <motion.li
               key={channel._id}
@@ -540,6 +569,12 @@ export default function ConsolePage() {
               <div className="fixed bottom-4 right-4 bg-red-100 border border-red-200 text-red-700 px-4 py-2 rounded-md shadow-sm">
                 {error}
               </div>
+            )}
+            {toastMessage && (
+              <Toast
+                message={toastMessage}
+                onClose={() => setToastMessage(null)}
+              />
             )}
           </div>
         </div>

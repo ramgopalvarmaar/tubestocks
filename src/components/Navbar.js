@@ -1,14 +1,31 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
+import { FaSun, FaMoon } from "react-icons/fa"; // For sun and moon icons
 
-export default function Navbar({ theme = "dark", onToggleTheme }) {
+export default function Navbar({ theme = "dark"}) {
   const [user, setUser] = useState(null);
+  const [showMenu, setShowMenu] = useState(false); // State for dropdown menu
+  const [isMobile, setIsMobile] = useState(false); // Track mobile view
   const router = useRouter();
   const pathname = usePathname();
   const isConsolePage = pathname === "/console";
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768); // Set mobile view if width <= 768px
+    };
+
+    // Check on initial render and add event listener
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -59,46 +76,79 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
   return (
     <nav className={`${navBgClass} ${textClass} py-4 px-6 shadow-md sticky top-0 z-50 transition-colors duration-300`}>
       <div className="max-w-9xl mx-auto flex items-center justify-between">
-      {/* Logo */}
-      <div className="flex items-center">
-        <a href="/console" className="text-2xl font-normal">
-          <span
-            className={`text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 font-bold ${
-              isConsolePage ? "ml-8 sm:ml-0" : ""
-            }`}
-          >
-            TubeStocks
-          </span>
-          <span className="text-xs rounded py-1 ml-2">
-            Beta
-          </span>
-        </a>
-      </div>
-
+        {/* Logo */}
+        <div className="flex items-center">
+          <a href="/console" className="text-2xl font-normal">
+            <span
+              className={`text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 font-bold ${
+                isConsolePage ? "ml-8 sm:ml-0" : ""
+              }`}
+            >
+              TubeStocks
+            </span>
+            <span className="text-xs rounded py-1 ml-2">Beta</span>
+          </a>
+        </div>
 
         {/* Right Actions */}
         <div className="flex items-center space-x-4">
-          {/* Login/Logout */}
           {user ? (
-            <div className="flex items-center space-x-4">
-              {user.image && (
-                <img
-                  src={user.image}
-                  alt="User Avatar"
-                  className="w-8 h-8 rounded-full hidden sm:block"
-                />
+            <div className="relative">
+              {isMobile ? (
+                <>
+                  <img
+                    src={user.image}
+                    alt="User Avatar"
+                    className="w-8 h-8 rounded-full cursor-pointer"
+                    onClick={() => setShowMenu((prev) => !prev)}
+                  />
+                  {showMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg py-2">
+                      <button
+                        onClick={onToggleTheme}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        {theme === "dark" ? (
+                          <FaSun className="mr-2 text-yellow-500" />
+                        ) : (
+                          <FaMoon className="mr-2 text-gray-800" />
+                        )}
+                        Toggle Theme
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-500 px-4 py-2 text-white hover:bg-red-600 transition-all rounded-3xl"
+                  >
+                    Logout
+                  </button>
+                  <button
+                    onClick={onToggleTheme}
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 text-xl transition-colors"
+                  >
+                    {theme === "dark" ? (
+                      <FaSun className="text-yellow-500" />
+                    ) : (
+                      <FaMoon className="text-gray-800" />
+                    )}
+                  </button>
+                </div>
               )}
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 px-4 py-2 rounded-md text-white hover:bg-red-600 transition-all"
-              >
-                Logout
-              </button>
             </div>
           ) : (
             <button
               onClick={handleGoogleLogin}
-              className="bg-gray-700 px-4 py-2 rounded-md text-white hover:.bg-gray-900 flex items-center space-x-2 transition-all"
+              className="bg-gray-700 px-4 py-2 rounded-md text-white hover:bg-gray-900 flex items-center space-x-2 transition-all rounded-3xl"
             >
               <img
                 src="https://lh3.googleusercontent.com/COxitqgJr1sJnIDe8-jiKhxDx1FrYbtRHKJ9z_hELisAlapwE9LUPh6fcXIfb5vwpbMl4xl9H9TRFPc5NOO8Sb3VSgIBrfRYvW6cUA"
@@ -108,34 +158,6 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
               <span>Login</span>
             </button>
           )}
-
-          {/* Theme Toggle */}
-          <div className="relative">
-            <label
-              htmlFor="theme-toggle"
-              className="flex items-center cursor-pointer"
-            >
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  id="theme-toggle"
-                  className="sr-only"
-                  checked={theme === "dark"}
-                  onChange={onToggleTheme}
-                />
-                <div
-                  className={`block w-10 h-6 rounded-full ${
-                    theme === "dark" ? "bg-gray-600" : "bg-gray-300"
-                  }`}
-                ></div>
-                <div
-                  className={`dot absolute top-0.5 left-1 w-5 h-5 rounded-full transition ${
-                    theme === "dark" ? "bg-teal-300 translate-x-4" : "bg-gray-800"
-                  }`}
-                ></div>
-              </div>
-            </label>
-          </div>
         </div>
       </div>
     </nav>

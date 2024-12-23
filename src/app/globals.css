@@ -70,3 +70,34 @@ input[type="checkbox"]:checked + .block .dot {
     box-shadow: 0 0 10px #00f6ff, 0 0 20px #00f6ff;
   }
 }
+
+.modern-background {
+  background: linear-gradient(to right, #4a90e2, #9013fe);
+  color: white;
+  padding: 3rem 1.5rem;
+}
+
+.glowing-border {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); /* Adjust color for glow */
+  transition: box-shadow 0.5s ease-in-out;
+}
+
+.glowing-border:hover {
+  box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
+}
+
+.glowing-border-tubestocks {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 0 15px #bb005e; /* Adjust color for glow */
+  transition: box-shadow 0.5s ease-in-out;
+}
+
+.glowing-border-tubestocks:hover {
+  box-shadow: 0 0 40px #bb005e;
+}
+

@@ -13,6 +13,9 @@ function AnalyzeContent() {
   const [error, setError] = useState("");
   const [isFetching, setIsFetching] = useState(false);
   const [theme, setTheme] = useState("light"); // Theme state
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false); // Modal state
+
+  const stripeCheckoutUrl = "https://your-stripe-checkout-url.com"; // Replace with your Stripe checkout URL
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") || "light";
@@ -37,6 +40,7 @@ function AnalyzeContent() {
     setError("");
     setRecommendations([]);
     setIsFetching(true);
+    setShowSubscribeModal(false); // Hide the modal on new requests
 
     try {
       const response = await fetch("/api/analyze", {
@@ -47,6 +51,9 @@ function AnalyzeContent() {
 
       if (!response.ok) {
         const { error } = await response.json();
+        if (error === "Free-tier limit reached. Upgrade to Premium for unlimited analyses.") {
+          setShowSubscribeModal(true); // Show the subscription modal
+        }
         throw new Error(error || "Failed to analyze video");
       }
 
@@ -74,13 +81,7 @@ function AnalyzeContent() {
         {/* Main Content */}
         <div className={`${cardClasses} shadow-2xl rounded-lg p-6 w-full md:w-3/4`}>
           <h1 className="text-3xl font-extrabold mb-4">
-            <span
-              className={`${
-                isDark ? "text-teal-300" : "text-indigo-500"
-              }`}
-            >
-              AI-Powered
-            </span>{" "}
+            <span className={`${isDark ? "text-teal-300" : "text-indigo-500"}`}>AI-Powered</span>{" "}
             Stock Analysis
           </h1>
 
@@ -142,13 +143,8 @@ function AnalyzeContent() {
                 const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${rec.timestamp}&autoplay=0`;
 
                 return (
-                  <div
-                    key={idx}
-                    className={`${cardClasses} shadow-md rounded-lg p-5`}
-                  >
-                    <h3 className="text-xl font-semibold mb-2">
-                      Recommendation {idx + 1}
-                    </h3>
+                  <div key={idx} className={`${cardClasses} shadow-md rounded-lg p-5`}>
+                    <h3 className="text-xl font-semibold mb-2">Recommendation {idx + 1}</h3>
                     <p className="mb-2">
                       <strong>Stock Name:</strong> {rec.company_name} ({rec.ticker})
                     </p>
@@ -186,6 +182,32 @@ function AnalyzeContent() {
           </div>
         </div>
       </div>
+
+      {/* Subscribe Modal */}
+      {showSubscribeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`${cardClasses} rounded-lg p-6 w-full max-w-md text-center`}>
+            <h2 className="text-xl font-bold mb-4">Upgrade to Premium</h2>
+            <p className="mb-6">
+              You've reached your free-tier limit. Upgrade to Premium for unlimited video analyses.
+            </p>
+            <button
+              onClick={() => window.location.href = stripeCheckoutUrl}
+              className={`p-3 rounded-md ${
+                isDark ? "bg-teal-500 hover:bg-teal-600" : "bg-indigo-500 hover:bg-indigo-600"
+              } text-white`}
+            >
+              Subscribe Now
+            </button>
+            <button
+              onClick={() => setShowSubscribeModal(false)}
+              className="mt-4 text-sm underline"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

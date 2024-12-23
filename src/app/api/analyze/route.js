@@ -3,16 +3,23 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import clientPromise from "../../../lib/mongodb"; // MongoDB helper
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const FLASK_API_URL = "https://hot-catfish-heavily.ngrok-free.app"; // Ngrok-exposed Flask API URL
+const FLASK_API_URL = "http://127.0.0.1:5005"; // Ngrok-exposed Flask API URL
 
 export async function POST(req) {
+  // 1. Parse request body
   const { videoUrl } = await req.json();
-
   if (!videoUrl) {
     return NextResponse.json({ error: "No video URL provided" }, { status: 400 });
   }
 
-  // Step 1: Extract video ID from URL
+  // 2. Identify the user (example: from headers or session)
+  //    Adapt this to your real auth flow. For demonstration, we assume 'x-user-email' is in the headers.
+  const userEmail = req.headers.get("x-user-email");
+  if (!userEmail) {
+    return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
+  }
+
+  // 3. Extract YouTube Video ID
   let videoId;
   try {
     const urlObj = new URL(videoUrl);
@@ -24,25 +31,64 @@ export async function POST(req) {
   } catch (e) {
     return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 });
   }
-
   if (!videoId) {
     return NextResponse.json({ error: "Unable to extract video ID" }, { status: 400 });
   }
 
   try {
-    // Connect to MongoDB
+    // 4. Connect to MongoDB
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME); // Replace with your DB name
-    const collection = db.collection("recommendations");
+    const recommendationsColl = db.collection("recommendations");
+    const usersColl = db.collection("users");
 
-    // Step 2: Check if recommendations for this video ID already exist
-    const existingData = await collection.findOne({ videoId });
+    // 5. Retrieve user document to check subscription & usage
+    const userDoc = await usersColl.findOne({ email: userEmail });
+    if (!userDoc) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const subscriptionType = userDoc.subscription || "free"; // "free" or "premium"
+    
+    // 5a. Check usage if user is on free tier
+    if (subscriptionType === "free") {
+      // We need to see if userDoc.usage is still in the current month
+      const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2024-01"
+      let usageCount = 0;
+
+      if (!userDoc.usage || userDoc.usage.month !== currentMonth) {
+        // If usage is not set or is from an old month, reset to 0
+        await usersColl.updateOne(
+          { email: userEmail },
+          { $set: { usage: { month: currentMonth, count: 0 } } }
+        );
+      } else {
+        // Same month, get the count
+        usageCount = userDoc.usage.count;
+      }
+
+      if (usageCount >= 10) {
+        // Exceeded free-tier limit
+        return NextResponse.json({
+          error: "Free-tier limit reached. Upgrade to Premium for unlimited analyses."
+        }, { status: 403 });
+      }
+    }
+
+    // 6. Check if we have cached recommendations for this video
+    const existingData = await recommendationsColl.findOne({ videoId });
     if (existingData) {
       console.log("Returning cached data from MongoDB");
+
+      // Update usage if free-tier user, since we are providing an analysis (even if cached)
+      if (subscriptionType === "free") {
+        await incrementAnalysisCount(usersColl, userEmail);
+      }
+
       return NextResponse.json({ recommendations: existingData.recommendations });
     }
 
-    // Step 3: Fetch the transcript using the Ngrok-exposed Flask API
+    // 7. Fetch transcript from Flask API
     let transcriptText;
     let transcriptTextWithTimeStamps;
     try {
@@ -53,32 +99,47 @@ export async function POST(req) {
       }
       const { transcript } = await transcriptResponse.json();
       transcriptText = transcript;
-      transcriptTextWithTimeStamps = transcript
+      transcriptTextWithTimeStamps = transcript;
     } catch (e) {
-      return NextResponse.json({ error: `Failed to fetch transcript: ${e.message}` }, { status: 500 });
+      return NextResponse.json({
+        error: `Failed to fetch transcript: ${e.message}`
+      }, { status: 500 });
     }
 
-    // Step 4: Call the Gemini API
+    // 8. Call the Gemini API
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction: `
       You are a financial analysis assistant. I will provide you with a transcript of a YouTube video in which a financial YouTuber discusses various stocks. Keep in mind that not all stocks mentioned are recommendations—some may be examples of poor performance.
 
-      Identify all the stocks explicitly recommended by the speaker. For each recommendation, include the following details:
+      Your task:
 
-      company_name: The name of the company. Ensure the company name is correct. The transcript might contain wrong spelling.
-      ticker: The stock's ticker symbol (Derive this value from the company name and ensure the symbol is valid and correct).
-      timestamp: The timestamp in seconds of the first mention of the company.
-      reason: A brief summary of the reason or context for the recommendation. Justify why it is recommended.
+      Identify only the stocks explicitly recommended by the speaker.
+      For each recommendation, provide:
+      company_name: The correct, full company name (even if the speaker spells it incorrectly).
+      ticker: The valid stock ticker with its exchange symbol in the format EXCHANGE:TICKER, such as NASDAQ:AAPL or NYSE:DIS. (verify it with a reputable source like Yahoo Finance or Google Finance).
+      timestamp: The time (in seconds) when the company is first mentioned.
+      reason: A brief explanation of the speaker’s justification or context for recommending that stock.
 
-      Return the results as a structured JSON object with a key recommendations, where the value is a list of objects, each representing a stock recommendation.
+      Return the final results as a valid JSON object with the following structure:
+
+      {
+        "recommendations": [
+          {
+            "company_name": "<company_name>",
+            "ticker": "<exchange:ticker_symbol>",
+            "timestamp": <timestamp_in_seconds>,
+            "reason": "<brief_reason>"
+          }
+          ...
+        ]
+      }
       `,
     });
 
     const generationConfig = {
-      temperature: 1,
+      temperature: 0.7,
       topP: 0.9,
       topK: 40,
       maxOutputTokens: 8192,
@@ -90,12 +151,15 @@ export async function POST(req) {
       history: [],
     });
 
-    console.log(transcriptTextWithTimeStamps);
+    console.log("Transcript with Timestamps: ", transcriptTextWithTimeStamps);
 
-    const userMessage = `Analyze the below transcript 
-    ${transcriptTextWithTimeStamps} 
-    with timestamp in seconds 
-    and return recommendations.`;
+    const userMessage = `
+      Analyze the below transcript:
+      ${transcriptTextWithTimeStamps}
+      with timestamp in seconds 
+      and return recommendations.
+    `;
+
     let recommendations = [];
     try {
       const geminiResponse = await chatSession.sendMessage(userMessage);
@@ -104,23 +168,56 @@ export async function POST(req) {
       console.log(parsed);
       recommendations = parsed.recommendations || [];
     } catch (e) {
-      return NextResponse.json({ error: "Failed to process recommendations" }, { status: 500 });
+      return NextResponse.json({
+        error: "Failed to process recommendations"
+      }, { status: 500 });
     }
 
+    // 9. If we have recommendations, save them to DB
     if (recommendations.length > 0) {
-      // Step 5: Save the recommendations to MongoDB
       const dataToSave = {
         videoId,
         recommendations,
         createdAt: new Date(),
       };
-      await collection.insertOne(dataToSave);
+      await recommendationsColl.insertOne(dataToSave);
     }
 
-    // Step 6: Return recommendations to the client
+    // 10. Now that we've successfully done an analysis, if user is free-tier => increment
+    if (subscriptionType === "free") {
+      await incrementAnalysisCount(usersColl, userEmail);
+    }
+
+    // 11. Return recommendations
     return NextResponse.json({ recommendations });
   } catch (e) {
     console.error("Database error:", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+/**
+ * Helper function to increment analysis usage count for a free-tier user.
+ * If it's a new month, reset usage.
+ */
+async function incrementAnalysisCount(usersColl, userEmail) {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  // Fetch the latest user doc
+  const userDoc = await usersColl.findOne({ email: userEmail });
+  if (!userDoc) return;
+
+  if (!userDoc.usage || userDoc.usage.month !== currentMonth) {
+    // if no usage or it's a different month, reset to 1
+    await usersColl.updateOne(
+      { email: userEmail },
+      { $set: { usage: { month: currentMonth, count: 1 } } }
+    );
+  } else {
+    // same month, increment
+    const newCount = (userDoc.usage.count || 0) + 1;
+    await usersColl.updateOne(
+      { email: userEmail },
+      { $set: { "usage.count": newCount } }
+    );
   }
 }

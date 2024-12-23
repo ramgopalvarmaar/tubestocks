@@ -18,7 +18,7 @@ export default function StockPage({ params }) {
   useEffect(() => {
     async function unwrapParams() {
       const resolvedParams = await params; // Await params
-      setTicker(resolvedParams.ticker);
+      setTicker(decodeURIComponent(resolvedParams.ticker));
     }
     unwrapParams();
   }, [params]);
@@ -70,6 +70,13 @@ export default function StockPage({ params }) {
     ? "bg-[#303134] text-gray-300 shadow-md hover:shadow-lg"
     : "bg-gray-100 text-gray-800 shadow-md hover:shadow-lg";
 
+  const replaceExchange = (ticker) => {
+    return ticker.replace(/^NSE:/, "BSE:");
+  };
+
+  const supportedTickerSymbol = replaceExchange(ticker);
+  console.log(supportedTickerSymbol)
+
   return (
     <div className={`${containerClasses} min-h-screen`}>
       <Navbar theme={theme} onToggleTheme={toggleTheme} />
@@ -83,7 +90,7 @@ export default function StockPage({ params }) {
             onClick={toggleCollapse}
             className={`px-4 py-2 rounded-lg ${
               isDark ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-500 hover:bg-blue-600 text-white"
-            } transition`}
+            } transition rounded-3xl`}
           >
             {collapsed ? "Expand" : "Collapse"}
           </button>
@@ -92,7 +99,7 @@ export default function StockPage({ params }) {
         {!collapsed && (
           <div className="relative w-full mt-4 h-96">
             <iframe
-              src={`https://s.tradingview.com/widgetembed/?symbol=${ticker}&theme=${isDark ? "dark" : "light"}&style=1&locale=en`}
+              src={`https://s.tradingview.com/widgetembed/?symbol=${supportedTickerSymbol}&theme=${isDark ? "dark" : "light"}&style=1&locale=en`}
               title="Live TradingView Chart"
               frameBorder="0"
               allow="autoplay; fullscreen"

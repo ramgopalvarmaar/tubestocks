@@ -8,7 +8,7 @@ export async function GET() {
     const db = client.db(process.env.DB_NAME); // Replace with your DB name
     const collection = db.collection("recommendations");
 
-    // Aggregate recommendations by stock (company_name or ticker) and fetch top 10
+    // Aggregate recommendations by ticker and fetch top 10 stocks with most used company names
     const aggregatedStocks = await collection
       .aggregate([
         { $unwind: "$recommendations" }, // Decompose recommendations array
@@ -17,29 +17,31 @@ export async function GET() {
             _id: {
               company_name: "$recommendations.company_name",
               ticker: "$recommendations.ticker",
-              videoId: "$videoId", // Group by unique video ID
+              videoId: "$videoId", // Group by unique videoId
             },
-            count: { $sum: 1 },
+            count: { $sum: 1 }, // Count occurrences within each video
           },
         },
         {
           $group: {
             _id: {
-              company_name: "$_id.company_name",
               ticker: "$_id.ticker",
+              company_name: "$_id.company_name",
             },
-            uniqueVideos: { $sum: 1 }, // Count unique videos per stock
+            uniqueVideos: { $addToSet: "$_id.videoId" }, // Collect unique video IDs
           },
         },
         {
           $project: {
             _id: 0,
-            company_name: "$_id.company_name",
             ticker: "$_id.ticker",
-            count: "$uniqueVideos",
+            company_name: "$_id.company_name",
+            uniqueVideoCount: { $size: "$uniqueVideos" }, // Count unique video IDs
           },
         },
-        { $sort: { count: -1 } }, // Sort by count (highest recommendations first)
+        {
+          $sort: { uniqueVideoCount: -1 }, // Sort by unique video count (highest first)
+        },
         { $limit: 10 }, // Fetch only the top 10 stocks
       ])
       .toArray();
@@ -47,6 +49,9 @@ export async function GET() {
     return NextResponse.json({ stocks: aggregatedStocks });
   } catch (error) {
     console.error("Error fetching stock recommendations:", error);
-    return NextResponse.json({ error: "Failed to fetch stock recommendations" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch stock recommendations" },
+      { status: 500 }
+    );
   }
 }

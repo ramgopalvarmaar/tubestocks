@@ -14,15 +14,24 @@ export async function POST(req) {
     const db = client.db(process.env.DB_NAME); // Replace with your DB name
     const collection = db.collection("users");
 
-    // Check if user already exists
+    // Check if the user already exists
     const existingUser = await collection.findOne({ email: body.email });
+
     if (!existingUser) {
-      // Insert user into the database
+      // Get the current month for usage tracking
+      const currentMonth = new Date().toISOString().slice(0, 7); // e.g., "2024-01"
+
+      // Insert new user into the database with default free-tier settings
       await collection.insertOne({
         email: body.email,
         name: body.name,
-        image: body.image,
-        createdAt: new Date(),
+        image: body.image || null,
+        subscription: "free", // Default to free-tier
+        usage: {
+          month: currentMonth, // Track usage by month
+          count: 0, // Start with 0 analyses
+        },
+        createdAt: new Date(), // Timestamp of account creation
       });
     }
 
