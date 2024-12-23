@@ -79,6 +79,15 @@ export async function POST(req) {
     if (existingData) {
       console.log("Returning cached data from MongoDB");
 
+      // Update `users` array to include the current user if not already present
+      const userAnalyzed = existingData.users?.some((u) => u.email === userEmail);
+      if (!userAnalyzed) {
+        await recommendationsColl.updateOne(
+          { videoId },
+          { $push: { users: { email: userEmail, analyzedAt: new Date() } } }
+        );
+      }
+
       // Update usage if free-tier user, since we are providing an analysis (even if cached)
       if (subscriptionType === "free") {
         await incrementAnalysisCount(usersColl, userEmail);
@@ -176,8 +185,14 @@ export async function POST(req) {
     if (recommendations.length > 0) {
       const dataToSave = {
         videoId,
-        userEmail,
+        videoUrl,
         recommendations,
+        users: [
+          {
+            email: userEmail,
+            analyzedAt: new Date(),
+          },
+        ],
         createdAt: new Date(),
       };
       await recommendationsColl.insertOne(dataToSave);
