@@ -1,21 +1,38 @@
 "use client";
 
-import React, { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect, useContext } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
+import { UserContext } from "../../context/UserContext";
 
 function AnalyzeContent() {
   const searchParams = useSearchParams();
   const videoUrl = searchParams.get("videoUrl");
+  const { user } = useContext(UserContext);
 
   const [inputUrl, setInputUrl] = useState(videoUrl || "");
   const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState("");
   const [isFetching, setIsFetching] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true); // Add a loading state for auth
   const [theme, setTheme] = useState("light"); // Theme state
   const [showSubscribeModal, setShowSubscribeModal] = useState(false); // Modal state
 
   const stripeCheckoutUrl = "https://your-stripe-checkout-url.com"; // Replace with your Stripe checkout URL
+
+   // Simulate auth loading state
+   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setIsAuthLoading(false); // Simulate that auth state has loaded
+    }, 1000); // Adjust the timeout to your app's auth loading logic
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthLoading && videoUrl && user) {
+      handleAnalyze(videoUrl);
+    }
+  }, [isAuthLoading, videoUrl, user]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") || "light";
@@ -30,13 +47,12 @@ function AnalyzeContent() {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  useEffect(() => {
-    if (videoUrl) {
-      handleAnalyze(videoUrl);
-    }
-  }, [videoUrl]);
-
   async function handleAnalyze(urlToAnalyze) {
+    if (!user) {
+      setError("You must be logged in to analyze videos.");
+      return;
+    }
+
     setError("");
     setRecommendations([]);
     setIsFetching(true);
@@ -45,7 +61,7 @@ function AnalyzeContent() {
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" , "x-user-email": user?.email || "",},
         body: JSON.stringify({ videoUrl: urlToAnalyze }),
       });
 
@@ -71,6 +87,22 @@ function AnalyzeContent() {
   const cardClasses = isDark
     ? "bg-[#303134] border border-[#5f6368] text-gray-300 hover:shadow-lg"
     : "bg-gray-100 border border-gray-300 text-gray-800 hover:shadow-lg";
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p>Loading authentication...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <p>Please log in to access this feature.</p>
+    </div>
+  );
+  }
 
   return (
     <div className={`${containerClasses} min-h-screen`}>
@@ -201,7 +233,7 @@ function AnalyzeContent() {
             </button>
             <button
               onClick={() => setShowSubscribeModal(false)}
-              className="mt-4 text-sm underline"
+              className="mt-4 ml-4 text-sm underline"
             >
               Close
             </button>

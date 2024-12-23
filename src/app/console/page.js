@@ -71,7 +71,7 @@ export default function ConsolePage() {
       if (currentUser) {
         setUser(currentUser);
         await fetchChannels(currentUser.email);
-        await fetchStockRecommendations();
+        await fetchStockRecommendations(currentUser.email);
         await fetchTopChannels(); // Fetch global top channels
       }
     });
@@ -111,11 +111,18 @@ export default function ConsolePage() {
     }
   }
 
-  async function fetchStockRecommendations() {
+  async function fetchStockRecommendations(userId) {
     try {
-      const res = await fetch("/api/getStockRecommendations");
+      const res = await fetch("/api/getStockRecommendations", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": userId || "", // Pass user email in the header
+        },
+      });
+  
       const data = await res.json();
-
+  
       if (!res.ok) throw new Error(data.error || "Failed to fetch stock recommendations.");
       setStockRecommendations(data.stocks);
     } catch (err) {
@@ -378,14 +385,20 @@ export default function ConsolePage() {
     {topStocks.map((stock, idx) => (
       <motion.div
         key={`${stock.ticker}-${idx}`} // Unique key
-        className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${cardClasses}`}
+        className={`relative p-3 rounded-lg shadow-sm border ${
+          stock.ticker === "XX:XX" ? "cursor-default filter blur-[2px]" : "cursor-pointer"
+        } hover:shadow-md transition group flex flex-col justify-between ${cardClasses}`}
         variants={cardVariants}
         initial="hidden"
         animate="visible"
         custom={idx}
-        onClick={() => router.push(`/stock/${stock.ticker.split(':').pop()}`)}
+        onClick={
+          stock.ticker !== "XX:XX"
+            ? () => router.push(`/stock/${stock.ticker.split(':').pop()}`)
+            : null // Remove onClick if ticker is "XX:XX"
+        }
       >
-        <h2 className="text-xs font-semibold">{stock.company_name}</h2>
+        <h2 className="text-xs font-semibold line-clamp-2">{stock.company_name}</h2>
         <p className="text-xs text-gray-500">{stock.ticker.split(':').pop()}</p>
         <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
           {stock.uniqueVideoCount}
@@ -395,7 +408,15 @@ export default function ConsolePage() {
             idx % 5 === 0 ? "left-0" : "left-1/2 -translate-x-1/2"
           } transform mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg hidden group-hover:block z-20`}
         >
-          <p>{stock.uniqueVideoCount} videos recommend this stock</p>
+          <div className="backdrop-filter-none">
+            {stock.company_name === "Upgrade to Premium" ? (
+              <p>{stock.uniqueVideoCount} videos recommend this stock</p>
+            ) : (
+              <p>
+                {stock.uniqueVideoCount} videos recommend this {stock.company_name}
+              </p>
+            )}
+          </div>
         </div>
       </motion.div>
     ))}
@@ -514,9 +535,9 @@ export default function ConsolePage() {
                 />
                 <div className="ml-4 flex-1">
                   <h3 className="text-lg font-semibold mb-1">{channel.title}</h3>
-                  <p className="text-gray-500 mb-2">{channel.handle}</p>
+                  <p className="mb-2">{channel.handle}</p>
 
-                  <div className="flex items-center space-x-4 text-gray-400 text-xs">
+                  <div className="flex items-center space-x-4 text-xs">
                     <div className="flex items-center">
                       <EyeIcon className="h-4 w-4 mr-1 text-blue-500" />
                       <span>{formatCount(channel.views)} views</span>
@@ -534,34 +555,51 @@ export default function ConsolePage() {
               </div>
 
               {recentVideos[channel.id] && (
-                <div className="mt-4 overflow-x-auto">
-                  <h4 className="text-gray-400 text-sm mb-2">Recent Videos:</h4>
-                  <div className="flex space-x-4 whitespace-nowrap">
-                    {recentVideos[channel.id].map((video) => (
-                      <div
-                        key={video.videoId}
-                        className="w-60 flex-shrink-0 p-2 bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all"
+              <div className="mt-4 overflow-x-auto">
+                <h4 className="text-sm mb-2">Recent Videos:</h4>
+                <div className="flex space-x-4 whitespace-nowrap">
+                  {recentVideos[channel.id].map((video) => (
+                    <div
+                      key={video.videoId}
+                      className={`relative w-60 flex-shrink-0 p-2 bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all ${cardClasses}`}
+                    >
+                      {/* YouTube Icon */}
+                      <button
+                        onClick={() => window.open(`https://www.youtube.com/watch?v=${video.videoId}`, '_blank')}
+                        className="absolute top-3 right-4 text-red-600 hover:text-red-800 transition"
+                        title="Watch on YouTube"
                       >
-                        <img
-                          src={video.thumbnail}
-                          alt={video.title}
-                          className="w-full h-36 object-cover rounded-md"
-                        />
-                        <p className="mt-2 text-sm text-gray-300 font-bold truncate">{video.title}</p>
-                        <p className="text-gray-400 text-xs">
-                          Published: {new Date(video.publishedAt).toDateString()}
-                        </p>
-                        <button
-                          onClick={() => router.push(`/analyze?videoUrl=${encodeURIComponent(video.url)}`)}
-                          className="mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-md hover:scale-105 transition-transform"
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          className="w-6 h-6"
                         >
-                          Analyze
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          <path d="M10.2 15.7v-7.5l6.5 3.8-6.5 3.7zM24 12c0-3.1 0-4.8-.3-6.2-.3-1.4-1-2.5-1.8-3.2C20.3 1.9 19 1.6 15.7 1.5c-1.8-.1-3.6-.1-5.4-.1s-3.6 0-5.4.1C4 1.6 2.7 1.9 2.1 2.6c-.8.7-1.5 1.8-1.8 3.2C0 7.2 0 8.9 0 12s0 4.8.3 6.2c.3 1.4 1 2.5 1.8 3.2.6.7 2 1 5.3 1.1 1.8.1 3.6.1 5.4.1s3.6 0 5.4-.1c3.3-.1 4.7-.4 5.3-1.1.8-.7 1.5-1.8 1.8-3.2.3-1.4.3-3.1.3-6.2z" />
+                        </svg>
+                      </button>
+                      {/* Thumbnail */}
+                      <img
+                        src={video.thumbnail}
+                        alt={video.title}
+                        className="w-full h-36 object-cover rounded-md"
+                      />
+                      <p className="mt-2 text-sm font-bold truncate">{video.title}</p>
+                      <p className="text-xs text-gray-400">
+                        Published: {new Date(video.publishedAt).toDateString()}
+                      </p>
+                      <button
+                        onClick={() => router.push(`/analyze?videoUrl=${encodeURIComponent(video.url)}`)}
+                        className="mt-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-md hover:scale-105 transition-transform"
+                      >
+                        Analyze
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
+
             </motion.li>
           ))}
           </ul>

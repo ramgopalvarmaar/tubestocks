@@ -13,7 +13,6 @@ export async function POST(req) {
   }
 
   // 2. Identify the user (example: from headers or session)
-  //    Adapt this to your real auth flow. For demonstration, we assume 'x-user-email' is in the headers.
   const userEmail = req.headers.get("x-user-email");
   if (!userEmail) {
     return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
@@ -177,15 +176,16 @@ export async function POST(req) {
     if (recommendations.length > 0) {
       const dataToSave = {
         videoId,
+        userEmail,
         recommendations,
         createdAt: new Date(),
       };
       await recommendationsColl.insertOne(dataToSave);
-    }
 
-    // 10. Now that we've successfully done an analysis, if user is free-tier => increment
-    if (subscriptionType === "free") {
-      await incrementAnalysisCount(usersColl, userEmail);
+      // 10. Now that we've successfully done an analysis, if user is free-tier => increment
+      if (subscriptionType === "free") {
+        await incrementAnalysisCount(usersColl, userEmail);
+      }
     }
 
     // 11. Return recommendations

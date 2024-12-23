@@ -1,61 +1,46 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
-import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
-import { FaSun, FaMoon } from "react-icons/fa"; // For sun and moon icons
+import { useRouter, usePathname } from "next/navigation";
+import { UserContext } from "../context/UserContext";
+import { FaSun, FaMoon } from "react-icons/fa";
 
 export default function Navbar({ theme = "dark", onToggleTheme }) {
-  const [user, setUser] = useState(null);
-  const [showMenu, setShowMenu] = useState(false); // State for dropdown menu
-  const [isMobile, setIsMobile] = useState(false); // Track mobile view
+  const { user, setUser } = useContext(UserContext);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const isConsolePage = pathname === "/console";
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768); // Set mobile view if width <= 768px
+      setIsMobile(window.innerWidth <= 768);
     };
 
-    // Check on initial render and add event listener
     handleResize();
     window.addEventListener("resize", handleResize);
 
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      if (currentUser) {
-        setUser({
-          name: currentUser.displayName,
-          image: currentUser.photoURL,
-        });
-      } else {
-        setUser(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
   async function handleGoogleLogin() {
     const provider = new GoogleAuthProvider();
+    // Add prompt parameter to force account selection
+    provider.setCustomParameters({
+      prompt: "select_account", // Forces account selection every time
+    });
     try {
       const result = await signInWithPopup(auth, provider);
       const { displayName, email, photoURL } = result.user;
 
-      const response = await fetch("/api/saveUser", {
+      await fetch("/api/saveUser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: displayName, email, image: photoURL }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to save user data.");
-      }
 
       setUser({ name: displayName, email, image: photoURL });
       router.push("/console");
@@ -126,6 +111,11 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
                 </>
               ) : (
                 <div className="flex items-center space-x-4">
+                  <img
+                    src={user.image}
+                    alt="User Avatar"
+                    className="w-8 h-8 rounded-full cursor-pointer"
+                  />
                   <button
                     onClick={handleLogout}
                     className="bg-red-500 px-4 py-2 text-white hover:bg-red-600 transition-all rounded-3xl"
@@ -134,7 +124,7 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
                   </button>
                   <button
                     onClick={onToggleTheme}
-                    className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 text-xl transition-colors"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-transparent text-xl transition-colors"
                   >
                     {theme === "dark" ? (
                       <FaSun className="text-yellow-500" />
