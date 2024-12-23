@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { FaSun, FaMoon } from "react-icons/fa"; // For sun and moon icons
 
-export default function Navbar({ theme = "dark"}) {
+export default function Navbar({ theme = "dark", onToggleTheme }) {
   const [user, setUser] = useState(null);
   const [showMenu, setShowMenu] = useState(false); // State for dropdown menu
   const [isMobile, setIsMobile] = useState(false); // Track mobile view
