@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { auth } from "../../firebase";
+import { auth } from "../../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -10,28 +10,30 @@ import {
   TrashIcon,
   MenuIcon,
   SearchIcon,
+  EyeIcon,
+  UsersIcon,
+  VideoCameraIcon,
+  RefreshIcon,
 } from "@heroicons/react/solid";
-import { EyeIcon, UsersIcon, VideoCameraIcon, UserIcon, RefreshIcon } from "@heroicons/react/solid";
-import Navbar from "../../components/Navbar";
-  
+import Navbar from "../../../components/Navbar";
+
 export default function ConsolePage() {
   const [channels, setChannels] = useState([]);
-  const [topChannels, setTopChannels] = useState([]); // New state for globally popular channels
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [recentVideos, setRecentVideos] = useState({});
-  const [stockRecommendations, setStockRecommendations] = useState([]);
   const [autoFetch, setAutoFetch] = useState(false);
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [theme, setTheme] = useState("light");
-  const router = useRouter();
   const [userChannelIds, setUserChannelIds] = useState([]);
   const [toastMessage, setToastMessage] = useState(null);
   const [scrollToIndex, setScrollToIndex] = useState(null);
+  const [analyzedVideos, setAnalyzedVideos] = useState([]);
 
   const listRef = React.createRef();
+  const router = useRouter();
 
   useEffect(() => {
     if (scrollToIndex !== null && listRef.current) {
@@ -39,7 +41,7 @@ export default function ConsolePage() {
         behavior: "smooth",
         block: "center",
       });
-      setScrollToIndex(null); // Reset after scrolling
+      setScrollToIndex(null);
     }
   }, [scrollToIndex]);
 
@@ -71,12 +73,23 @@ export default function ConsolePage() {
       if (currentUser) {
         setUser(currentUser);
         await fetchChannels(currentUser.email);
-        await fetchStockRecommendations(currentUser.email);
-        await fetchTopChannels(); // Fetch global top channels
+        await fetchAnalyzedVideos(currentUser.email);
       }
     });
     return () => unsubscribe();
   }, []);
+
+  async function fetchAnalyzedVideos(email) {
+    try {
+      const res = await fetch(`/api/getAnalyzedVideos?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch analyzed videos.');
+      setAnalyzedVideos(data.videos);
+    } catch (err) {
+      console.error('Error fetching analyzed videos:', err);
+    }
+  }
 
   useEffect(() => {
     if (autoFetch) {
@@ -91,55 +104,11 @@ export default function ConsolePage() {
       const sortedChannels = data.channels.sort((a, b) => b.subscribers - a.subscribers);
       setChannels(sortedChannels);
 
-      const userChannelIds = sortedChannels.map((channel) => channel.id); 
+      const userChannelIds = sortedChannels.map((channel) => channel.id);
       setUserChannelIds(userChannelIds);
     } catch (err) {
       console.error("Failed to fetch channels:", err);
     }
-  }
-
-  // New function to fetch top 10 globally popular YouTube channels
-  async function fetchTopChannels() {
-    try {
-      const res = await fetch("/api/getTopChannels");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch top channels.");
-      setTopChannels(data.channels);
-    } catch (err) {
-      console.error("Failed to fetch top channels:", err);
-      setError("Failed to fetch top channels. Please try again.");
-    }
-  }
-
-  async function fetchStockRecommendations(userId) {
-    try {
-      const res = await fetch("/api/getStockRecommendations", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-email": userId || "", // Pass user email in the header
-        },
-      });
-  
-      const data = await res.json();
-  
-      if (!res.ok) throw new Error(data.error || "Failed to fetch stock recommendations.");
-      setStockRecommendations(data.stocks);
-    } catch (err) {
-      console.error("Failed to fetch stock recommendations:", err);
-      setError("Failed to fetch stock recommendations. Please try again.");
-    }
-  }
-
-  function Toast({ message, onClose }) {
-    return (
-      <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 animate-bounce">
-        <span>{message}</span>
-        <button onClick={onClose} className="text-white text-sm font-bold">
-          ×
-        </button>
-      </div>
-    );
   }
 
   async function fetchRecentVideos(channelId) {
@@ -178,7 +147,6 @@ export default function ConsolePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           channelId: channel.id,
-          channelUrl: channel.url,
           userId: user.email,
           title: channel.title,
           thumbnail: channel.thumbnail,
@@ -193,10 +161,10 @@ export default function ConsolePage() {
       const data = await res.json();
       setChannels((prev) => {
         const updatedChannels = [...prev, data.channel];
-        setScrollToIndex(updatedChannels.length - 1); // Index of the newly added channel
+        setScrollToIndex(updatedChannels.length - 1);
         return updatedChannels;
       });
-  
+
       setToastMessage("Channel added successfully!");
     } catch (err) {
       console.error("Failed to add channel:", err);
@@ -221,31 +189,6 @@ export default function ConsolePage() {
     }
   }
 
-  function handleAnalyzeNavigation(videoUrl) {
-    router.push(`/analyze?videoUrl=${encodeURIComponent(videoUrl)}`);
-  }
-
-  function formatCount(number) {
-    if (number >= 1e9) return (number / 1e9).toFixed(1) + "B";
-    if (number >= 1e6) return (number / 1e6).toFixed(1) + "M";
-    if (number >= 1e3) return (number / 1e3).toFixed(1) + "K";
-    return number;
-  }
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: (index) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        delay: index * 0.1,
-        duration: 0.5,
-        type: "spring",
-        stiffness: 100,
-      },
-    }),
-  };
-
   const isDark = theme === "dark";
   const containerClasses = isDark ? "bg-[#202124] text-white" : "bg-white text-black";
   const sidePanelClasses = isDark
@@ -266,8 +209,12 @@ export default function ConsolePage() {
 
   const sidebarWidth = isPanelOpen ? "w-66" : "w-20";
 
-  const topStocks = stockRecommendations.slice(0, 10);
-  const globalTopChannels = topChannels.slice(0, 10);
+  function formatCount(number) {
+    if (number >= 1e9) return (number / 1e9).toFixed(1) + "B";
+    if (number >= 1e6) return (number / 1e6).toFixed(1) + "M";
+    if (number >= 1e3) return (number / 1e3).toFixed(1) + "K";
+    return number;
+  }
 
   return (
     <div className={`${containerClasses} min-h-screen font-sans`}>
@@ -374,133 +321,52 @@ export default function ConsolePage() {
           <Navbar theme={theme} onToggleTheme={toggleTheme} />
 
           <div className="p-6">
-            {/* Top Section: Split into two columns */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-              {/* Top 10 Stock Recommendations */}
-              <div>
-                <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"} text-center`}>
-                  Top 10 Stock Recommendations
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {topStocks.map((stock, idx) => (
-                  <motion.div
-                    key={`${stock.ticker}-${idx}`} // Unique key
-                    className={`relative p-3 rounded-lg shadow-sm border ${
-                      stock.ticker === "XX:XX" ? "cursor-default filter blur-[2px]" : "cursor-pointer"
-                    } hover:shadow-md transition group flex flex-col justify-between ${cardClasses}`}
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    custom={idx}
-                    onClick={
-                      stock.ticker !== "XX:XX"
-                        ? () => router.push(`/stock/${stock.ticker.split(':').pop()}`)
-                        : null // Remove onClick if ticker is "XX:XX"
-                    }
-                  >
-                    <h2 className="text-xs font-semibold line-clamp-2">{stock.company_name}</h2>
-                    <p className="text-xs text-gray-500">{stock.ticker.split(':').pop()}</p>
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow">
-                      {stock.uniqueVideoCount}
+            {/* Analyzed Videos Section */}
+            <h2 className={`text-2xl font-semibold mb-4 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Videos You Have Analyzed
+            </h2>
+            <div className="space-y-6">
+              {analyzedVideos.map((video) => (
+                <motion.div
+                  key={video.videoId}
+                  className={`relative shadow-sm rounded-lg p-4 ${cardClasses}`}
+                >
+                  <div className="flex items-center mb-4">
+                    <img
+                      src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
+                      alt="Thumbnail"
+                      className="w-16 h-16 rounded-lg flex-shrink-0"
+                    />
+                    <div className="ml-4 flex-1">
+                      <a
+                        href={video.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-lg font-semibold hover:underline"
+                      >
+                        Watch Video
+                      </a>
+                      <p className="text-sm">
+                        Analyzed At: {new Date(video.users[0].analyzedAt).toLocaleString()}
+                      </p>
                     </div>
-                    <div
-                      className={`absolute bottom-full ${
-                        idx % 5 === 0 ? "left-0" : "left-1/2 -translate-x-1/2"
-                      } transform mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg hidden group-hover:block z-20`}
-                    >
-                      <div className="backdrop-filter-none">
-                        {stock.company_name === "Upgrade to Premium" ? (
-                          <p>{stock.uniqueVideoCount} videos recommend this stock</p>
-                        ) : (
-                          <p>
-                            {stock.uniqueVideoCount} videos recommend this {stock.company_name}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-                </div>
-              </div>
-
-              {/* Top 10 YouTube Channels (Global) */}
-              <div>
-                <h2 className="text-2xl font-semibold mb-4 text-center">Top 10 YouTube Channels</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {topChannels.map((channel, idx) => (
-                    <motion.div
-                      key={channel.id}
-                      className={`relative p-3 rounded-lg shadow-sm border hover:shadow-md transition cursor-pointer group flex flex-col justify-between ${cardClasses}`}
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      custom={idx}
-                      onClick={() => window.open(`https://www.youtube.com/channel/${channel.id}`, "_blank")}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <img
-                          src={channel.thumbnail}
-                          alt={channel.title}
-                          className="w-12 h-12 rounded-full"
-                        />
-                        {/* Channel Name - Visible on Mobile */}
-                        <span className="text-xs font-semibold truncate sm:hidden">{channel.title}</span>
-
-                        {/* Tooltip */}
-                        <div
-                          className={`absolute bottom-full ${
-                            idx % 5 === 4 ? "right-0" : "left-1/2 -translate-x-1/2"
-                          } mb-2 w-max bg-gray-700 text-white text-xs rounded-md px-3 py-1 shadow-lg hidden group-hover:block z-20`}
-                        >
-                          {channel.title} - {channel.count} users have added this channel
-                        </div>
-                      </div>
-                      <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full shadow flex items-center space-x-1">
-                        <span>{channel.count}</span>
-                        <UserIcon className="w-3 h-3" />
-                      </div>
-
-                      {/* Add Button */}
-                      {!userChannelIds.includes(channel.id) && (
-                        <button
-                          className="absolute bottom-2 right-2 text-green-500 hover:text-green-400"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddChannel(channel);
-                          }}
-                        >
-                          <PlusCircleIcon className="w-5 h-5" />
-                        </button>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm mb-2">Recommendations:</h3>
+                    <ul className="space-y-2">
+                      {video.recommendations.map((rec, index) => (
+                        <li key={index} className="text-sm">
+                          <strong>{rec.company_name} ({rec.ticker}):</strong> {rec.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </motion.div>
+              ))}
             </div>
 
-            {/* "Take me to personal console" card */}
-            <motion.div
-                className={`relative p-6 rounded-lg shadow-lg border cursor-pointer hover:shadow-xl transition group flex flex-col justify-center items-center mb-12 ${cardClasses}`}
-                onClick={() => router.push("/personal/console")}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.005 }}
-              >
-                <UserIcon className="w-12 h-12 text-blue-500 mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Take me to personal console</h2>
-                <p className="text-gray-500 text-sm text-center">
-                  Navigate to your personal console and view your recent analyses and stocks reco.
-                </p>
-                <button
-                  className={`${buttonPrimaryClasses} mt-4`}
-                >
-                  Go to Console
-                </button>
-              </motion.div>
-
-
             {/* Channels You Have Added */}
-            <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
+            <h2 className={`text-2xl font-semibold mb-4 mt-12 text-center ${isDark ? "text-white" : "text-gray-900"}`}>
               Channels You Have Added
             </h2>
             <ul ref={listRef} className="space-y-6">
