@@ -11,18 +11,18 @@ export async function POST(req) {
 
   try {
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME); // Replace with your DB name
+    const db = client.db(process.env.DB_NAME);
     const collection = db.collection("users");
 
     // Check if the user already exists
-    const existingUser = await collection.findOne({ email: body.email });
+    let userDoc = await collection.findOne({ email: body.email });
 
-    if (!existingUser) {
+    if (!userDoc) {
       // Get the current month for usage tracking
-      const currentMonth = new Date().toISOString().slice(0, 7); // e.g., "2024-01"
+      const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2024-01"
 
       // Insert new user into the database with default free-tier settings
-      await collection.insertOne({
+      const insertResult = await collection.insertOne({
         email: body.email,
         name: body.name,
         image: body.image || null,
@@ -33,9 +33,19 @@ export async function POST(req) {
         },
         createdAt: new Date(), // Timestamp of account creation
       });
+
+      // Fetch the newly inserted user
+      userDoc = await collection.findOne({ _id: insertResult.insertedId });
     }
 
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+    // Return the user object (existing or newly created)
+    return new Response(
+      JSON.stringify({
+        success: true,
+        user: userDoc,
+      }),
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Database error:", error);
     return new Response(JSON.stringify({ error: "Database error" }), {

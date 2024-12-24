@@ -489,7 +489,7 @@ export default function ConsolePage() {
                 <UserIcon className="w-12 h-12 text-blue-500 mb-4" />
                 <h2 className="text-xl font-semibold mb-2">Take me to personal console</h2>
                 <p className="text-gray-500 text-sm text-center">
-                  Navigate to your personal console and view your recent analyses and stocks reco.
+                  Navigate to your personal console and view your recent analyses and stocks recommendations.
                 </p>
                 <button
                   className={`${buttonPrimaryClasses} mt-4`}

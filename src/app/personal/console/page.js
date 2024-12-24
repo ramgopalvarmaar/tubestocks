@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { auth } from "../../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -31,6 +31,7 @@ export default function ConsolePage() {
   const [toastMessage, setToastMessage] = useState(null);
   const [scrollToIndex, setScrollToIndex] = useState(null);
   const [analyzedVideos, setAnalyzedVideos] = useState([]);
+  const [sortOrder, setSortOrder] = useState("desc"); // Sort order for analyzed date
 
   const listRef = React.createRef();
   const router = useRouter();
@@ -216,6 +217,26 @@ export default function ConsolePage() {
     return number;
   }
 
+  const filteredVideos = useMemo(() => {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return analyzedVideos
+      .filter((video) =>
+        video.recommendations.some((rec) =>
+          rec.company_name.toLowerCase().includes(lowerCaseQuery)
+        )
+      )
+      .sort((a, b) => {
+        // Convert the analyzedAt strings to Date objects
+        const dateA = new Date(a.users[0].analyzedAt);
+        const dateB = new Date(b.users[0].analyzedAt);
+  
+        // Then subtract their numeric timestamps
+        return sortOrder === "asc"
+          ? dateA.getTime() - dateB.getTime()
+          : dateB.getTime() - dateA.getTime();
+      });
+  }, [analyzedVideos, sortOrder, searchQuery]);  
+
   return (
     <div className={`${containerClasses} min-h-screen font-sans`}>
       <div className="relative h-screen flex">
@@ -322,48 +343,138 @@ export default function ConsolePage() {
 
           <div className="p-6">
             {/* Analyzed Videos Section */}
-            <h2 className={`text-2xl font-semibold mb-4 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h2 className={`text-2xl font-semibold mb-4 text-center`}>
               Videos You Have Analyzed
             </h2>
-            <div className="space-y-6">
-              {analyzedVideos.map((video) => (
+            {/* Search and Sort Controls */}
+            <div className="flex items-center justify-between mb-6">
+              {/* Search Input */}
+              <input
+                type="text"
+                placeholder="Search by stock name"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="p-2 rounded-md border focus:ring-2 focus:ring-blue-500 text-gray-600 focus:outline-none"
+              />
+
+              {/* Sort Icon */}
+              <div
+                className="cursor-pointer p-2 rounded-md transition flex items-center space-x-2"
+                onClick={() => {
+                  // Update sort order and re-render cards
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                }}
+              >
+                <span className="text-sm font-medium">Sort by Date</span>
+                {sortOrder === "asc" ? (
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 15l7-7 7 7"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            {/* Cards Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredVideos.map((video) => (
                 <motion.div
                   key={video.videoId}
-                  className={`relative shadow-sm rounded-lg p-4 ${cardClasses}`}
+                  className={`relative shadow-lg rounded-lg p-4 hover:shadow-xl transition bg-[#303134] border border-[#5f6368] ${cardClasses}`}
+                  whileHover={{ scale: 1.02 }}
                 >
-                  <div className="flex items-center mb-4">
-                    <img
-                      src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
-                      alt="Thumbnail"
-                      className="w-16 h-16 rounded-lg flex-shrink-0"
-                    />
-                    <div className="ml-4 flex-1">
-                      <a
-                        href={video.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-lg font-semibold hover:underline"
-                      >
-                        Watch Video
-                      </a>
-                      <p className="text-sm">
-                        Analyzed At: {new Date(video.users[0].analyzedAt).toLocaleString()}
-                      </p>
-                    </div>
+                  {/* Thumbnail */}
+                  <img
+                    src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
+                    alt="Thumbnail"
+                    className="w-full h-40 object-cover rounded-lg"
+                  />
+
+                  {/* Video Details */}
+                  <div className="mt-4">
+                    <a
+                      href={video.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-lg font-semibold text-blue-600 hover:underline"
+                    >
+                      Watch Video
+                    </a>
+                    <p className="text-sm mt-1">
+                      Analyzed At: {new Date(video.users[0].analyzedAt).toLocaleString()}
+                    </p>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-sm mb-2">Recommendations:</h3>
-                    <ul className="space-y-2">
-                      {video.recommendations.map((rec, index) => (
-                        <li key={index} className="text-sm">
-                          <strong>{rec.company_name} ({rec.ticker}):</strong> {rec.reason}
-                        </li>
-                      ))}
-                    </ul>
+
+                  {/* Recommendations */}
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-sm mb-2">Recommendation:</h3>
+                    <div>
+                      {/* Show first recommendation */}
+                      <p className="text-sm">
+                        <strong>{video.recommendations[0].company_name} ({video.recommendations[0].ticker}):</strong>{" "}
+                        {video.recommendations[0].reason}
+                      </p>
+
+                      {/* Show other recommendations on click */}
+                      {video.recommendations.length > 1 && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-sm text-blue-500 hover:underline flex items-center">
+                            <span>View More Recommendations</span>
+                            <svg
+                              className="w-4 h-4 ml-1"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </summary>
+                          <ul className="space-y-2 mt-2">
+                            {video.recommendations.slice(1).map((rec, index) => (
+                              <li key={index} className="text-sm">
+                                <strong>{rec.company_name} ({rec.ticker}):</strong> {rec.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </div>
+
 
             {/* Channels You Have Added */}
             <h2 className={`text-2xl font-semibold mb-4 mt-12 text-center ${isDark ? "text-white" : "text-gray-900"}`}>

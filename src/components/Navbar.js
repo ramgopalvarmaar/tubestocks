@@ -28,26 +28,46 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
 
   async function handleGoogleLogin() {
     const provider = new GoogleAuthProvider();
-    // Add prompt parameter to force account selection
     provider.setCustomParameters({
       prompt: "select_account", // Forces account selection every time
     });
+  
     try {
       const result = await signInWithPopup(auth, provider);
       const { displayName, email, photoURL } = result.user;
-
-      await fetch("/api/saveUser", {
+  
+      // Call the API to save the user and get the user details (including subscription)
+      const response = await fetch("/api/saveUser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: displayName, email, image: photoURL }),
       });
-
-      setUser({ name: displayName, email, image: photoURL });
-      router.push("/console");
+  
+      if (!response.ok) {
+        throw new Error("Failed to save user");
+      }
+  
+      const data = await response.json();
+  
+      if (data.success) {
+        // Update the user context with the full user object from the API
+        setUser({
+          name: data.user.name,
+          email: data.user.email,
+          image: data.user.image,
+          subscription: data.user.subscription, // Add subscription to context
+          usage: data.user.usage, // Any other relevant fields
+        });
+  
+        // Redirect to console page
+        router.push("/console");
+      } else {
+        throw new Error(data.error || "An unknown error occurred");
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Error during login:", err);
     }
-  }
+  }  
 
   async function handleLogout() {
     await signOut(auth);
@@ -84,7 +104,11 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
                   <img
                     src={user.image}
                     alt="User Avatar"
-                    className="w-8 h-8 rounded-full cursor-pointer"
+                    className={`w-8 h-8 rounded-full cursor-pointer ${
+                      user.subscription === "premium"
+                        ? "animate-glow border-2 border-pink-500 shadow-pink-500"
+                        : ""
+                    }`}
                     onClick={() => setShowMenu((prev) => !prev)}
                   />
                   {showMenu && (
@@ -114,7 +138,11 @@ export default function Navbar({ theme = "dark", onToggleTheme }) {
                   <img
                     src={user.image}
                     alt="User Avatar"
-                    className="w-8 h-8 rounded-full cursor-pointer"
+                    className={`w-8 h-8 rounded-full cursor-pointer ${
+                      user.subscription === "premium"
+                        ? "animate-glow border-2 border-pink-500 shadow-pink-500"
+                        : ""
+                    }`}
                   />
                   <button
                     onClick={handleLogout}
